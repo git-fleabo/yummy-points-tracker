@@ -38,6 +38,8 @@ function getFamilyFromMember(member: FamilyMember): Family | null {
   return member.families;
 }
 
+const dashboardBuildMarker = "dashboard-debug-6a3c8a2";
+
 function DashboardPage() {
   const navigate = useNavigate();
   const [family, setFamily] = useState<Family | null>(null);
@@ -194,6 +196,9 @@ function DashboardPage() {
                 Turn missed treats into future treats.
               </p>
             </div>
+            <p className="text-xs font-medium text-muted-foreground">
+              Test marker: {dashboardBuildMarker}
+            </p>
           </div>
           <Button variant="outline" onClick={handleSignOut}>
             <LogOut aria-hidden="true" />
