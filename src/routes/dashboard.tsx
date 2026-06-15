@@ -29,7 +29,18 @@ type Child = {
   current_balance: number;
 };
 
-const dashboardBuildMarker = "dashboard-debug-family-load-fix";
+const defaultFamilyName = "My Family";
+const defaultPointName = "Yummy Points";
+const dashboardBuildMarker = "dashboard-debug-family-create-fix";
+
+function getErrorMessage(err: unknown) {
+  if (err instanceof Error) return err.message;
+  if (err && typeof err === "object" && "message" in err) {
+    return String(err.message);
+  }
+
+  return "Could not load your family dashboard.";
+}
 
 function DashboardPage() {
   const navigate = useNavigate();
@@ -72,7 +83,7 @@ function DashboardPage() {
 
     loadDashboard().catch((err: unknown) => {
       if (isMounted) {
-        setError(err instanceof Error ? err.message : "Could not load your family dashboard.");
+        setError(getErrorMessage(err));
         setLoading(false);
       }
     });
@@ -107,11 +118,13 @@ function DashboardPage() {
     }
 
     if (!loadedFamily) {
-      const { data: createdFamily, error: familyError } = await supabase
-        .from("families")
-        .insert({ name: "My Family", point_name: "Yummy Points" })
-        .select("id, name, point_name")
-        .single<Family>();
+      const createdFamily: Family = {
+        id: crypto.randomUUID(),
+        name: defaultFamilyName,
+        point_name: defaultPointName,
+      };
+
+      const { error: familyError } = await supabase.from("families").insert(createdFamily);
 
       if (familyError) throw familyError;
 
