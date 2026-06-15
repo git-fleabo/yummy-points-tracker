@@ -1,48 +1,266 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { LogOut, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({ meta: [{ title: "Family Dashboard — Yummy Points" }] }),
   component: DashboardPage,
 });
 
+type Family = {
+  id: string;
+  name: string;
+  point_name: string;
+};
+
+type FamilyMember = {
+  family_id: string;
+  families: Family | Family[] | null;
+};
+
+type Child = {
+  id: string;
+  name: string;
+  avatar_icon: string | null;
+  current_balance: number;
+};
+
+function getFamilyFromMember(member: FamilyMember): Family | null {
+  if (Array.isArray(member.families)) {
+    return member.families[0] ?? null;
+  }
+
+  return member.families;
+}
+
 function DashboardPage() {
   const navigate = useNavigate();
-  const [checked, setChecked] = useState(false);
+  const [family, setFamily] = useState<Family | null>(null);
+  const [children, setChildren] = useState<Child[]>([]);
+  const [childName, setChildName] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [addingChild, setAddingChild] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (!data.session) {
-        navigate({ to: "/login" });
-      } else {
-        setChecked(true);
+    let isMounted = true;
+
+    async function loadDashboard() {
+      setError(null);
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+
+      if (sessionError) {
+        if (isMounted) {
+          setError(sessionError.message);
+          setLoading(false);
+        }
+        return;
+      }
+
+      const user = sessionData.session?.user;
+      if (!user) {
+        navigate({ to: "/login", replace: true });
+        return;
+      }
+
+      const { family: loadedFamily, children: loadedChildren } = await loadFamilyDashboard(user.id);
+
+      if (isMounted) {
+        setFamily(loadedFamily);
+        setChildren(loadedChildren);
+        setLoading(false);
+      }
+    }
+
+    loadDashboard().catch((err: unknown) => {
+      if (isMounted) {
+        setError(err instanceof Error ? err.message : "Could not load your family dashboard.");
+        setLoading(false);
       }
     });
+
+    return () => {
+      isMounted = false;
+    };
   }, [navigate]);
+
+  async function loadFamilyDashboard(userId: string) {
+    const { data: existingMember, error: memberError } = await supabase
+      .from("family_members")
+      .select("family_id, families(id, name, point_name)")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle<FamilyMember>();
+
+    if (memberError) throw memberError;
+
+    let loadedFamily = existingMember ? getFamilyFromMember(existingMember) : null;
+
+    if (!loadedFamily) {
+      const { data: createdFamily, error: familyError } = await supabase
+        .from("families")
+        .insert({ name: "My Family", point_name: "Yummy Points" })
+        .select("id, name, point_name")
+        .single<Family>();
+
+      if (familyError) throw familyError;
+
+      const { error: familyMemberError } = await supabase.from("family_members").insert({
+        family_id: createdFamily.id,
+        user_id: userId,
+        role: "owner",
+      });
+
+      if (familyMemberError) throw familyMemberError;
+      loadedFamily = createdFamily;
+    }
+
+    const { data: loadedChildren, error: childrenError } = await supabase
+      .from("children")
+      .select("id, name, avatar_icon, current_balance")
+      .eq("family_id", loadedFamily.id)
+      .order("created_at", { ascending: true });
+
+    if (childrenError) throw childrenError;
+
+    return {
+      family: loadedFamily,
+      children: loadedChildren ?? [],
+    };
+  }
+
+  async function handleAddChild(e: React.FormEvent) {
+    e.preventDefault();
+    const trimmedName = childName.trim();
+    if (!family || !trimmedName) return;
+
+    setError(null);
+    setAddingChild(true);
+
+    const { data: newChild, error: childError } = await supabase
+      .from("children")
+      .insert({
+        family_id: family.id,
+        name: trimmedName,
+        avatar_icon: "⭐",
+        avatar_colour: "soft-yellow",
+      })
+      .select("id, name, avatar_icon, current_balance")
+      .single<Child>();
+
+    setAddingChild(false);
+
+    if (childError) {
+      setError(childError.message);
+      return;
+    }
+
+    setChildren((currentChildren) => [...currentChildren, newChild]);
+    setChildName("");
+  }
 
   async function handleSignOut() {
     await supabase.auth.signOut();
     navigate({ to: "/login", replace: true });
   }
 
-  if (!checked) return null;
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#fffaf0] px-4">
+        <p className="text-sm text-muted-foreground">Loading your family dashboard…</p>
+      </div>
+    );
+  }
+
+  if (!family) return null;
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <Card className="w-full max-w-md text-center">
-        <CardHeader>
-          <CardTitle className="text-3xl">Yummy Points</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <p className="text-muted-foreground">Logged in successfully</p>
-          <Button onClick={handleSignOut} className="w-full">
+    <div className="min-h-screen bg-[#fffaf0] px-4 py-8 text-foreground sm:px-6 lg:px-8">
+      <main className="mx-auto flex w-full max-w-5xl flex-col gap-8">
+        <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-muted-foreground">{family.name}</p>
+            <div>
+              <h1 className="text-4xl font-semibold tracking-normal text-[#3d2a1a]">
+                Yummy Points
+              </h1>
+              <p className="mt-2 text-base text-muted-foreground">
+                Turn missed treats into future treats.
+              </p>
+            </div>
+          </div>
+          <Button variant="outline" onClick={handleSignOut}>
+            <LogOut aria-hidden="true" />
             Sign out
           </Button>
-        </CardContent>
-      </Card>
+        </header>
+
+        {error && (
+          <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            {error}
+          </div>
+        )}
+
+        <Card className="border-[#f1dfba] bg-white/90 shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-xl">Add a child</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form
+              className="flex flex-col gap-3 sm:flex-row sm:items-end"
+              onSubmit={handleAddChild}
+            >
+              <div className="flex-1 space-y-2">
+                <Label htmlFor="child-name">Child name</Label>
+                <Input
+                  id="child-name"
+                  value={childName}
+                  onChange={(e) => setChildName(e.target.value)}
+                  placeholder="Name"
+                  autoComplete="off"
+                />
+              </div>
+              <Button type="submit" disabled={addingChild || !childName.trim()}>
+                <Plus aria-hidden="true" />
+                {addingChild ? "Adding…" : "Add child"}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+
+        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {children.map((child) => (
+            <Card key={child.id} className="border-[#f1dfba] bg-white shadow-sm">
+              <CardContent className="space-y-5 p-5">
+                <div className="flex items-center gap-3">
+                  <div className="flex size-12 items-center justify-center rounded-full bg-[#fff0b8] text-2xl">
+                    {child.avatar_icon ?? "⭐"}
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-[#3d2a1a]">{child.name}</h2>
+                    <p className="text-sm text-muted-foreground">{family.point_name}</p>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Current balance</p>
+                  <p className="text-3xl font-semibold text-[#3d2a1a]">
+                    {child.current_balance} {family.point_name}
+                  </p>
+                </div>
+                <Button className="w-full" variant="secondary" disabled>
+                  Child home coming next
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </section>
+      </main>
     </div>
   );
 }
