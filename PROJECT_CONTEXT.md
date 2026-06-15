@@ -27,7 +27,14 @@ those points for rewards.
 - Parents can award points through quick-add or custom amount entry.
 - Points are saved as `transactions` rows.
 - Child balances are left to the existing database trigger.
-- The hidden `First Points` badge can be awarded after the first successful points transaction.
+- The hidden `First Points` badge is awarded after the first successful points transaction.
+
+### Fixed: Sprint 2 First Points Badge Unlock
+
+- Badge lookup uses `badges.name = "First Points"`.
+- Badge unlock checks `child_badges` before inserting.
+- Badge errors are logged to the console and do not block the saved points transaction.
+- The unlock success message only appears when a new `child_badges` row is created.
 
 ## Routes And Pages
 
@@ -75,7 +82,7 @@ Existing Supabase tables are used without schema changes:
     positive `points_change`, optional `note`, `family_id`, and `child_id`.
   - Child balance updates are handled by the existing database trigger.
 - `badges`
-  - The First Points badge is found via `trigger_type = "first_points"`.
+  - The First Points badge is found via `name = "First Points"`.
 - `child_badges`
   - A row is inserted when a child earns First Points and does not already have it.
 
@@ -91,6 +98,8 @@ Existing Supabase tables are used without schema changes:
 - The Add Points route is implemented as `children.$childId_.add-points.tsx` so TanStack Router
   treats `/children/$childId/add-points` as a separate screen rather than a nested child-home
   route requiring an `<Outlet />`.
+- Badges are currently unlocked client-side after successful transactions.
+- Badge unlock failures are console-only; they do not prevent navigation back to the child home.
 - The implementation intentionally relies on existing RLS policies and database triggers.
 - No database schema changes were made for Sprint 2.
 

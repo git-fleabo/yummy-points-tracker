@@ -75,22 +75,21 @@ function AddPointsPage() {
   async function awardFirstPointsBadgeIfNeeded() {
     if (!child) return false;
 
-    const { count, error: countError } = await supabase
-      .from("transactions")
-      .select("id", { count: "exact", head: true })
-      .eq("child_id", child.id)
-      .eq("type", "points_added");
-
-    if (countError) throw countError;
-    if (count !== 1) return false;
-
     const { data: firstPointsBadge, error: badgeError } = await supabase
       .from("badges")
       .select("id")
-      .eq("trigger_type", "first_points")
-      .single<Badge>();
+      .eq("name", "First Points")
+      .maybeSingle<Badge>();
 
-    if (badgeError) throw badgeError;
+    if (badgeError) {
+      console.error("Could not load First Points badge.", badgeError);
+      return false;
+    }
+
+    if (!firstPointsBadge) {
+      console.error('Could not find "First Points" badge.');
+      return false;
+    }
 
     const { data: existingChildBadge, error: existingBadgeError } = await supabase
       .from("child_badges")
@@ -99,7 +98,11 @@ function AddPointsPage() {
       .eq("badge_id", firstPointsBadge.id)
       .maybeSingle<{ id: string }>();
 
-    if (existingBadgeError) throw existingBadgeError;
+    if (existingBadgeError) {
+      console.error("Could not check First Points badge.", existingBadgeError);
+      return false;
+    }
+
     if (existingChildBadge) return false;
 
     const { error: childBadgeError } = await supabase.from("child_badges").insert({
@@ -107,7 +110,10 @@ function AddPointsPage() {
       badge_id: firstPointsBadge.id,
     });
 
-    if (childBadgeError) throw childBadgeError;
+    if (childBadgeError) {
+      console.error("Could not unlock First Points badge.", childBadgeError);
+      return false;
+    }
 
     return true;
   }
@@ -133,17 +139,13 @@ function AddPointsPage() {
       return;
     }
 
-    try {
-      const unlockedFirstPoints = await awardFirstPointsBadgeIfNeeded();
-      navigate({
-        to: "/children/$childId",
-        params: { childId: child.id },
-        search: { firstPoints: unlockedFirstPoints ? "1" : undefined },
-      });
-    } catch (err: unknown) {
-      setError(getErrorMessage(err));
-      setSaving(false);
-    }
+    const unlockedFirstPoints = await awardFirstPointsBadgeIfNeeded();
+
+    navigate({
+      to: "/children/$childId",
+      params: { childId: child.id },
+      search: { firstPoints: unlockedFirstPoints ? "1" : undefined },
+    });
   }
 
   if (loading) {
