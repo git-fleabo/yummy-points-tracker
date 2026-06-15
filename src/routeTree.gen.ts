@@ -13,6 +13,8 @@ import { Route as SignupRouteImport } from './routes/signup'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ChildrenChildIdRouteImport } from './routes/children.$childId'
+import { Route as ChildrenChildIdAddPointsRouteImport } from './routes/children.$childId_.add-points'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -34,18 +36,33 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ChildrenChildIdRoute = ChildrenChildIdRouteImport.update({
+  id: '/children/$childId',
+  path: '/children/$childId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChildrenChildIdAddPointsRoute =
+  ChildrenChildIdAddPointsRouteImport.update({
+    id: '/children/$childId_/add-points',
+    path: '/children/$childId/add-points',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
+  '/children/$childId': typeof ChildrenChildIdRoute
+  '/children/$childId/add-points': typeof ChildrenChildIdAddPointsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
+  '/children/$childId': typeof ChildrenChildIdRoute
+  '/children/$childId/add-points': typeof ChildrenChildIdAddPointsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -53,13 +70,34 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
+  '/children/$childId': typeof ChildrenChildIdRoute
+  '/children/$childId_/add-points': typeof ChildrenChildIdAddPointsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/dashboard' | '/login' | '/signup'
+  fullPaths:
+    | '/'
+    | '/dashboard'
+    | '/login'
+    | '/signup'
+    | '/children/$childId'
+    | '/children/$childId/add-points'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/dashboard' | '/login' | '/signup'
-  id: '__root__' | '/' | '/dashboard' | '/login' | '/signup'
+  to:
+    | '/'
+    | '/dashboard'
+    | '/login'
+    | '/signup'
+    | '/children/$childId'
+    | '/children/$childId/add-points'
+  id:
+    | '__root__'
+    | '/'
+    | '/dashboard'
+    | '/login'
+    | '/signup'
+    | '/children/$childId'
+    | '/children/$childId_/add-points'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -67,6 +105,8 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   LoginRoute: typeof LoginRoute
   SignupRoute: typeof SignupRoute
+  ChildrenChildIdRoute: typeof ChildrenChildIdRoute
+  ChildrenChildIdAddPointsRoute: typeof ChildrenChildIdAddPointsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -99,6 +139,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/children/$childId': {
+      id: '/children/$childId'
+      path: '/children/$childId'
+      fullPath: '/children/$childId'
+      preLoaderRoute: typeof ChildrenChildIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/children/$childId_/add-points': {
+      id: '/children/$childId_/add-points'
+      path: '/children/$childId/add-points'
+      fullPath: '/children/$childId/add-points'
+      preLoaderRoute: typeof ChildrenChildIdAddPointsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -107,6 +161,8 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   LoginRoute: LoginRoute,
   SignupRoute: SignupRoute,
+  ChildrenChildIdRoute: ChildrenChildIdRoute,
+  ChildrenChildIdAddPointsRoute: ChildrenChildIdAddPointsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

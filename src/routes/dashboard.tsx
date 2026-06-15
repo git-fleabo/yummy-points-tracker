@@ -1,5 +1,5 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { LogOut, Plus } from "lucide-react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { LogOut, Plus, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -278,28 +278,36 @@ function DashboardPage() {
 
         <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {children.map((child) => (
-            <Card key={child.id} className="border-[#f1dfba] bg-white shadow-sm">
-              <CardContent className="space-y-5 p-5">
-                <div className="flex items-center gap-3">
-                  <div className="flex size-12 items-center justify-center rounded-full bg-[#fff0b8] text-2xl">
-                    {child.avatar_icon ?? "⭐"}
+            <Link
+              key={child.id}
+              to="/children/$childId"
+              params={{ childId: child.id }}
+              className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <Card className="h-full border-[#f1dfba] bg-white shadow-sm transition-colors hover:border-[#e7c985] hover:bg-[#fffdf8]">
+                <CardContent className="space-y-5 p-5">
+                  <div className="flex items-center gap-3">
+                    <div className="flex size-12 items-center justify-center rounded-full bg-[#fff0b8] text-2xl">
+                      {child.avatar_icon ?? "⭐"}
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-semibold text-[#3d2a1a]">{child.name}</h2>
+                      <p className="text-sm text-muted-foreground">{family.point_name}</p>
+                    </div>
                   </div>
                   <div>
-                    <h2 className="text-lg font-semibold text-[#3d2a1a]">{child.name}</h2>
-                    <p className="text-sm text-muted-foreground">{family.point_name}</p>
+                    <p className="text-sm text-muted-foreground">Current balance</p>
+                    <p className="text-3xl font-semibold text-[#3d2a1a]">
+                      {child.current_balance} {family.point_name}
+                    </p>
                   </div>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Current balance</p>
-                  <p className="text-3xl font-semibold text-[#3d2a1a]">
-                    {child.current_balance} {family.point_name}
-                  </p>
-                </div>
-                <Button className="w-full" variant="secondary" disabled>
-                  Child home coming next
-                </Button>
-              </CardContent>
-            </Card>
+                  <div className="flex items-center gap-2 text-sm font-medium text-[#3d2a1a]">
+                    <UserRound aria-hidden="true" className="size-4" />
+                    Open child home
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
           ))}
         </section>
       </main>
