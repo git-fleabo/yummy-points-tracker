@@ -20,7 +20,6 @@ type Family = {
 
 type FamilyMember = {
   family_id: string;
-  families: Family | Family[] | null;
 };
 
 type Child = {
@@ -30,15 +29,7 @@ type Child = {
   current_balance: number;
 };
 
-function getFamilyFromMember(member: FamilyMember): Family | null {
-  if (Array.isArray(member.families)) {
-    return member.families[0] ?? null;
-  }
-
-  return member.families;
-}
-
-const dashboardBuildMarker = "dashboard-debug-6a3c8a2";
+const dashboardBuildMarker = "dashboard-debug-family-load-fix";
 
 function DashboardPage() {
   const navigate = useNavigate();
@@ -94,7 +85,7 @@ function DashboardPage() {
   async function loadFamilyDashboard(userId: string) {
     const { data: existingMember, error: memberError } = await supabase
       .from("family_members")
-      .select("family_id, families(id, name, point_name)")
+      .select("family_id")
       .eq("user_id", userId)
       .order("created_at", { ascending: true })
       .limit(1)
@@ -102,7 +93,18 @@ function DashboardPage() {
 
     if (memberError) throw memberError;
 
-    let loadedFamily = existingMember ? getFamilyFromMember(existingMember) : null;
+    let loadedFamily: Family | null = null;
+
+    if (existingMember) {
+      const { data: existingFamily, error: familyLookupError } = await supabase
+        .from("families")
+        .select("id, name, point_name")
+        .eq("id", existingMember.family_id)
+        .single<Family>();
+
+      if (familyLookupError) throw familyLookupError;
+      loadedFamily = existingFamily;
+    }
 
     if (!loadedFamily) {
       const { data: createdFamily, error: familyError } = await supabase
@@ -180,7 +182,29 @@ function DashboardPage() {
     );
   }
 
-  if (!family) return null;
+  if (!family) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#fffaf0] px-4">
+        <Card className="w-full max-w-md border-[#f1dfba] bg-white shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-xl text-[#3d2a1a]">Dashboard could not load</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              {error ?? "We could not find your family dashboard yet."}
+            </p>
+            <p className="text-xs font-medium text-muted-foreground">
+              Test marker: {dashboardBuildMarker}
+            </p>
+            <Button variant="outline" onClick={handleSignOut} className="w-full">
+              <LogOut aria-hidden="true" />
+              Sign out
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#fffaf0] px-4 py-8 text-foreground sm:px-6 lg:px-8">
