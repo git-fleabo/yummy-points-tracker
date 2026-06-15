@@ -90,6 +90,9 @@ Existing Supabase tables are used without schema changes:
 
 - Supabase Auth remains the source of session truth on protected routes.
 - Protected route components check the current session client-side and redirect to `/login`.
+- A visible dashboard test marker is temporarily kept in place to confirm Lovable is serving the
+  expected commit. Update `dashboardBuildMarker` in `src/routes/dashboard.tsx` with each test
+  push using a short feature label and nearby commit hash.
 - Child access is verified by loading the child, then confirming a matching `family_members`
   row for the logged-in user and the child's `family_id`.
 - Shared child/family loading lives in `src/lib/family-data.ts`.
