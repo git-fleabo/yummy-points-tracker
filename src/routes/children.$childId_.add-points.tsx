@@ -101,7 +101,10 @@ function AddPointsPage() {
       });
 
       if (result.unlockedFirstPoints) {
-        sessionStorage.setItem(`badge-unlocked-${child.id}`, "first-points");
+        sessionStorage.setItem(
+          `badge-unlocked-${child.id}`,
+          JSON.stringify(result.unlockedBadge ?? { name: "First Points", icon: null }),
+        );
       }
 
       navigate({

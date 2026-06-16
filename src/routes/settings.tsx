@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, BadgeCheck, FlaskConical, RotateCcw, Save, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { BadgeUnlockCelebration, type UnlockedBadge } from "@/components/badge-unlock-celebration";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -39,6 +40,7 @@ type TestChild = {
 type TestActionResult = {
   message: string;
   childId?: string;
+  unlockedBadge?: UnlockedBadge | null;
 };
 
 function SettingsPage() {
@@ -176,7 +178,7 @@ function SettingsPage() {
       if (!family) throw new Error("Family data is not ready yet.");
       const samplePoints = settings.activityPointValues[0]?.points ?? 1;
 
-      await addPointsActivity({
+      const result = await addPointsActivity({
         familyId: family.id,
         childId: child.id,
         currentBalance: child.current_balance,
@@ -185,7 +187,11 @@ function SettingsPage() {
         settings,
       });
 
-      return { message: "Sample activity added", childId: child.id };
+      return {
+        message: "Sample activity added",
+        childId: child.id,
+        unlockedBadge: result.unlockedBadge,
+      };
     });
   }
 
@@ -197,7 +203,7 @@ function SettingsPage() {
       const firstPointsThreshold = getFirstPointsThreshold(settings);
       const pointsNeeded = Math.max(firstPointsThreshold - child.current_balance, 1);
 
-      await addPointsActivity({
+      const result = await addPointsActivity({
         familyId: family.id,
         childId: child.id,
         currentBalance: child.current_balance,
@@ -207,7 +213,11 @@ function SettingsPage() {
         requireFirstPointsUnlock: true,
       });
 
-      return { message: "Sample badge activity added", childId: child.id };
+      return {
+        message: "Sample badge activity added",
+        childId: child.id,
+        unlockedBadge: result.unlockedBadge,
+      };
     });
   }
 
@@ -481,18 +491,23 @@ function SettingsPage() {
                 )}
 
                 {testStatus && (
-                  <div className="flex flex-col gap-2 rounded-lg border border-success/40 bg-success/10 px-4 py-3 text-sm font-semibold text-success sm:flex-row sm:items-center sm:justify-between">
-                    <span>{testStatus.message}</span>
-                    {testStatus.childId && (
-                      <Button asChild size="sm" variant="outline" className="w-fit bg-card">
-                        <Link
-                          to="/children/$childId/activity-history"
-                          params={{ childId: testStatus.childId }}
-                        >
-                          View Activity History
-                        </Link>
-                      </Button>
+                  <div className="space-y-3">
+                    {testStatus.unlockedBadge && (
+                      <BadgeUnlockCelebration badge={testStatus.unlockedBadge} />
                     )}
+                    <div className="flex flex-col gap-2 rounded-lg border border-success/40 bg-success/10 px-4 py-3 text-sm font-semibold text-success sm:flex-row sm:items-center sm:justify-between">
+                      <span>{testStatus.message}</span>
+                      {testStatus.childId && (
+                        <Button asChild size="sm" variant="outline" className="w-fit bg-card">
+                          <Link
+                            to="/children/$childId/activity-history"
+                            params={{ childId: testStatus.childId }}
+                          >
+                            View Activity History
+                          </Link>
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 )}
               </section>

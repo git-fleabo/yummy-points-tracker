@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Gift, History, Map, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
+import { BadgeUnlockCelebration, type UnlockedBadge } from "@/components/badge-unlock-celebration";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,7 +17,7 @@ function ChildHomePage() {
   const navigate = useNavigate();
   const [child, setChild] = useState<Child | null>(null);
   const [family, setFamily] = useState<Family | null>(null);
-  const [showFirstPoints, setShowFirstPoints] = useState(false);
+  const [unlockedBadge, setUnlockedBadge] = useState<UnlockedBadge | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,11 +42,11 @@ function ChildHomePage() {
         const badgeStorageKey = `badge-unlocked-${childId}`;
         const unlockedBadge = sessionStorage.getItem(badgeStorageKey);
 
-        if (unlockedBadge === "first-points") {
-          setShowFirstPoints(true);
+        if (unlockedBadge) {
+          setUnlockedBadge(parseUnlockedBadge(unlockedBadge));
           sessionStorage.removeItem(badgeStorageKey);
         } else {
-          setShowFirstPoints(false);
+          setUnlockedBadge(null);
         }
 
         setChild(loadedChild);
@@ -107,10 +108,8 @@ function ChildHomePage() {
           </Link>
         </Button>
 
-        {showFirstPoints && (
-          <div className="rounded-lg border border-sunshine/70 bg-sunshine/25 px-4 py-3 text-sm font-semibold text-sunshine-foreground shadow-sm">
-            🌟 First Points unlocked!
-          </div>
+        {unlockedBadge && (
+          <BadgeUnlockCelebration badge={unlockedBadge} onDismiss={() => setUnlockedBadge(null)} />
         )}
 
         <Card className="border-border bg-card shadow-sm">
@@ -161,4 +160,23 @@ function ChildHomePage() {
       </main>
     </div>
   );
+}
+
+function parseUnlockedBadge(value: string): UnlockedBadge {
+  if (value === "first-points") return { name: "First Points", icon: null };
+
+  try {
+    const badge = JSON.parse(value) as Partial<UnlockedBadge>;
+
+    if (typeof badge.name === "string" && badge.name.trim()) {
+      return {
+        name: badge.name,
+        icon: typeof badge.icon === "string" && badge.icon.trim() ? badge.icon : null,
+      };
+    }
+  } catch {
+    return { name: "First Points", icon: null };
+  }
+
+  return { name: "First Points", icon: null };
 }

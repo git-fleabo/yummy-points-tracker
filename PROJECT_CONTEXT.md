@@ -13,15 +13,19 @@ project. Read this before making changes.
 - Current implementation supports auth, family bootstrap, child profiles, child home, adding
   points, First Points badge unlock, Activity History, Admin Settings, a brighter visual palette,
   and Admin Settings test tools.
-- Latest local work clarified Admin Settings test tool behavior, added Activity History links after
-  sample actions, and made reset tools verify that Supabase deletes/updates actually took effect.
+- Latest local work added a tasteful badge unlock celebration for normal Add Points and Admin
+  Settings test tool badge unlocks.
 - Latest local work is not committed yet.
 - Current uncommitted files:
+  - `/Users/noam/Documents/Codex/yummy-points-tracker/src/components/badge-unlock-celebration.tsx`
+  - `/Users/noam/Documents/Codex/yummy-points-tracker/src/lib/points-flow.ts`
+  - `/Users/noam/Documents/Codex/yummy-points-tracker/src/routes/children.$childId.tsx`
+  - `/Users/noam/Documents/Codex/yummy-points-tracker/src/routes/children.$childId_.add-points.tsx`
   - `/Users/noam/Documents/Codex/yummy-points-tracker/src/routes/settings.tsx`
   - `/Users/noam/Documents/Codex/yummy-points-tracker/PROJECT_CONTEXT.md`
 - Verification already run after latest change:
   - `npm run build` passes.
-  - `npx eslint src/routes/settings.tsx` passes.
+  - `npx eslint src/components/badge-unlock-celebration.tsx src/lib/points-flow.ts src/routes/children.\$childId.tsx src/routes/children.\$childId_.add-points.tsx src/routes/settings.tsx src/routes/children.\$childId_.activity-history.tsx` passes.
   - `git diff --check` passes.
   - Full `npm run lint` currently fails on pre-existing formatting issues in unrelated files:
     `src/routes/__root.tsx`, `src/routes/login.tsx`, and `src/routes/signup.tsx`, plus existing
@@ -116,6 +120,8 @@ project. Read this before making changes.
   - `/Users/noam/Documents/Codex/yummy-points-tracker/src/routeTree.gen.ts`
 - Shared family/child loader:
   - `/Users/noam/Documents/Codex/yummy-points-tracker/src/lib/family-data.ts`
+- Shared badge unlock celebration component:
+  - `/Users/noam/Documents/Codex/yummy-points-tracker/src/components/badge-unlock-celebration.tsx`
 - Shared points and First Points badge flow:
   - `/Users/noam/Documents/Codex/yummy-points-tracker/src/lib/points-flow.ts`
 - Local Admin Settings defaults/storage:
@@ -184,8 +190,33 @@ project. Read this before making changes.
   through the shared `addPointsActivity()` helper.
 - First Points threshold is read from Admin Settings local storage.
 - Badge errors are logged to the console and do not block the saved points transaction.
-- The one-time child-home success message is passed through `sessionStorage` key
-  `badge-unlocked-${child.id}`.
+- `addPointsActivity()` returns `unlockedBadge` with the badge name and icon only when it inserts a
+  new `child_badges` record.
+- The one-time child-home celebration is passed through `sessionStorage` key
+  `badge-unlocked-${child.id}` as badge JSON. The child home removes the key as soon as it reads it,
+  preventing repeat celebrations on refresh/back navigation. The old `"first-points"` string is
+  still supported as a fallback.
+
+### Badge Unlock Celebration
+
+- Shared component: `src/components/badge-unlock-celebration.tsx`.
+- The celebration is a compact styled panel using the brighter palette:
+  - "New badge unlocked!" message.
+  - Badge name.
+  - Badge icon from `badges.icon`, with a Lucide badge fallback.
+- Normal Add Points:
+  - `src/routes/children.$childId_.add-points.tsx` stores the newly unlocked badge in
+    `sessionStorage` only when `addPointsActivity()` reports a new unlock.
+  - `src/routes/children.$childId.tsx` reads that badge once and shows the celebration above the
+    child card.
+- Admin Settings test tools:
+  - `src/routes/settings.tsx` shows the same celebration inline when "Add sample activity" or
+    "Add sample badge-unlocking activity" causes a real new badge unlock.
+- Duplicate celebrations are prevented by the existing child badge lookup in `addPointsActivity()`.
+  If a child already has First Points, no new `child_badges` row is inserted and no `unlockedBadge`
+  is returned.
+- No badge rules, point values, transaction logic, or Activity History inference were changed in
+  this iteration.
 
 ### Activity History
 
@@ -238,6 +269,7 @@ project. Read this before making changes.
   - Appears in Activity History.
   - Shows the success message `"Sample activity added"` when complete.
   - The success state includes a "View Activity History" link for the affected child.
+  - If this action newly unlocks First Points, it also shows the badge unlock celebration inline.
 - "Add sample badge-unlocking activity":
   - Calls the shared `addPointsActivity()` helper used by Add Points.
   - Uses note `"Test badge-unlocking activity"`.
@@ -249,6 +281,7 @@ project. Read this before making changes.
   - Appears in Activity History with the First Points badge shown on the unlocking transaction.
   - Shows the success message `"Sample badge activity added"` when complete.
   - The success state includes a "View Activity History" link for the affected child.
+  - Shows the badge unlock celebration inline when First Points is newly unlocked.
 - Root cause fixed in this iteration:
   - The sample buttons used settings-local helper functions that inserted transactions directly
     instead of reusing the Add Points transaction/badge path. This made the buttons fragile and kept
@@ -272,6 +305,8 @@ project. Read this before making changes.
   - The existing database trigger remains responsible for increasing `children.current_balance`
     after a `transactions` insert.
   - The app currently has only one implemented badge flow: First Points.
+  - The `badges.icon` value is safe to display as a short visual label; if it is missing, the UI
+    falls back to a Lucide badge icon.
   - If every child already has First Points, the badge sample button should show an error asking the
     parent to reset badges first rather than deleting or bypassing existing badge state.
 - "Reset points":

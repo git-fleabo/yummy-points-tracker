@@ -3,11 +3,17 @@ import { getFirstPointsThreshold, type AdminSettings } from "@/lib/admin-setting
 
 type Badge = {
   id: string;
+  name: string;
+  icon: string | null;
 };
 
 export type AddPointsActivityResult = {
   unlockedFirstPoints: boolean;
   firstPointsAlreadyUnlocked: boolean;
+  unlockedBadge: {
+    name: string;
+    icon: string | null;
+  } | null;
 };
 
 export async function addPointsActivity({
@@ -70,12 +76,16 @@ async function awardFirstPointsBadgeIfNeeded({
       throw new Error("The sample activity did not reach the First Points badge threshold.");
     }
 
-    return { unlockedFirstPoints: false, firstPointsAlreadyUnlocked: false };
+    return {
+      unlockedFirstPoints: false,
+      firstPointsAlreadyUnlocked: false,
+      unlockedBadge: null,
+    };
   }
 
   const { data: firstPointsBadge, error: badgeError } = await supabase
     .from("badges")
-    .select("id")
+    .select("id, name, icon")
     .eq("name", "First Points")
     .maybeSingle<Badge>();
 
@@ -111,7 +121,11 @@ async function awardFirstPointsBadgeIfNeeded({
       throw new Error("This child already has the First Points badge.");
     }
 
-    return { unlockedFirstPoints: false, firstPointsAlreadyUnlocked: true };
+    return {
+      unlockedFirstPoints: false,
+      firstPointsAlreadyUnlocked: true,
+      unlockedBadge: null,
+    };
   }
 
   const { error: childBadgeError } = await supabase.from("child_badges").insert({
@@ -127,7 +141,14 @@ async function awardFirstPointsBadgeIfNeeded({
     );
   }
 
-  return { unlockedFirstPoints: true, firstPointsAlreadyUnlocked: false };
+  return {
+    unlockedFirstPoints: true,
+    firstPointsAlreadyUnlocked: false,
+    unlockedBadge: {
+      name: firstPointsBadge.name,
+      icon: firstPointsBadge.icon,
+    },
+  };
 }
 
 function handleBadgeError(
@@ -141,5 +162,9 @@ function handleBadgeError(
   }
 
   console.error(message, error);
-  return { unlockedFirstPoints: false, firstPointsAlreadyUnlocked: false };
+  return {
+    unlockedFirstPoints: false,
+    firstPointsAlreadyUnlocked: false,
+    unlockedBadge: null,
+  };
 }
