@@ -171,7 +171,7 @@ function AddPointsPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#fffaf0] px-4">
+      <div className="flex min-h-screen items-center justify-center bg-background px-4">
         <p className="text-sm text-muted-foreground">Loading add points…</p>
       </div>
     );
@@ -179,10 +179,10 @@ function AddPointsPage() {
 
   if (!child || !family) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#fffaf0] px-4">
-        <Card className="w-full max-w-md border-[#f1dfba] bg-white shadow-sm">
+      <div className="flex min-h-screen items-center justify-center bg-background px-4">
+        <Card className="w-full max-w-md border-border bg-card shadow-sm">
           <CardHeader>
-            <CardTitle className="text-xl text-[#3d2a1a]">Add Points could not load</CardTitle>
+            <CardTitle className="text-xl text-foreground">Add Points could not load</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
@@ -201,7 +201,7 @@ function AddPointsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#fffaf0] px-4 py-8 text-foreground sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-background px-4 py-8 text-foreground sm:px-6 lg:px-8">
       <main className="mx-auto flex w-full max-w-2xl flex-col gap-6">
         <Button asChild variant="outline" className="w-fit">
           <Link to="/children/$childId" params={{ childId }}>
@@ -210,11 +210,15 @@ function AddPointsPage() {
           </Link>
         </Button>
 
-        <Card className="border-[#f1dfba] bg-white shadow-sm">
+        <Card className="border-border bg-card shadow-sm">
           <CardHeader>
-            <CardTitle className="text-2xl text-[#3d2a1a]">Add Points</CardTitle>
+            <CardTitle className="text-2xl text-foreground">Add Points</CardTitle>
             <p className="text-sm text-muted-foreground">
-              {child.name} has {child.current_balance} {family.point_name}.
+              {child.name} has{" "}
+              <span className="font-semibold text-primary">
+                {child.current_balance} {family.point_name}
+              </span>
+              .
             </p>
           </CardHeader>
           <CardContent>
@@ -235,7 +239,7 @@ function AddPointsPage() {
                         setSelectedActivityId(activity.id);
                         setCustomAmount("");
                       }}
-                      className="h-auto justify-between gap-3 px-3 py-2 text-left"
+                      className="h-auto justify-between gap-3 px-3 py-3 text-left"
                     >
                       <span>{activity.name}</span>
                       <span>+{activity.points}</span>

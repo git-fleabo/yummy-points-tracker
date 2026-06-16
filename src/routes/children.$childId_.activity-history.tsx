@@ -114,7 +114,7 @@ function ActivityHistoryPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#fffaf0] px-4">
+      <div className="flex min-h-screen items-center justify-center bg-background px-4">
         <p className="text-sm text-muted-foreground">Loading activity history…</p>
       </div>
     );
@@ -122,10 +122,10 @@ function ActivityHistoryPage() {
 
   if (!child || !family) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#fffaf0] px-4">
-        <Card className="w-full max-w-md border-[#f1dfba] bg-white shadow-sm">
+      <div className="flex min-h-screen items-center justify-center bg-background px-4">
+        <Card className="w-full max-w-md border-border bg-card shadow-sm">
           <CardHeader>
-            <CardTitle className="text-xl text-[#3d2a1a]">
+            <CardTitle className="text-xl text-foreground">
               Activity history could not load
             </CardTitle>
           </CardHeader>
@@ -146,7 +146,7 @@ function ActivityHistoryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#fffaf0] px-4 py-8 text-foreground sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-background px-4 py-8 text-foreground sm:px-6 lg:px-8">
       <main className="mx-auto flex w-full max-w-4xl flex-col gap-6">
         <Button asChild variant="outline" className="w-fit">
           <Link to="/children/$childId" params={{ childId }}>
@@ -155,9 +155,9 @@ function ActivityHistoryPage() {
           </Link>
         </Button>
 
-        <Card className="border-[#f1dfba] bg-white shadow-sm">
+        <Card className="border-border bg-card shadow-sm">
           <CardHeader>
-            <CardTitle className="text-2xl text-[#3d2a1a]">Activity History</CardTitle>
+            <CardTitle className="text-2xl text-foreground">Activity History</CardTitle>
             <p className="text-sm text-muted-foreground">Logged activity for {child.name}.</p>
           </CardHeader>
           <CardContent>
@@ -168,7 +168,7 @@ function ActivityHistoryPage() {
             )}
 
             {rows.length === 0 ? (
-              <div className="rounded-md border border-dashed border-[#f1dfba] bg-[#fffdf8] px-4 py-8 text-center text-sm text-muted-foreground">
+              <div className="rounded-lg border border-dashed border-secondary/50 bg-secondary/15 px-4 py-8 text-center text-sm font-medium text-secondary-foreground">
                 No activity logged yet.
               </div>
             ) : (
@@ -184,16 +184,22 @@ function ActivityHistoryPage() {
                 <TableBody>
                   {rows.map((row) => (
                     <TableRow key={row.id}>
-                      <TableCell className="font-medium text-[#3d2a1a]">
+                      <TableCell className="font-medium text-foreground">
                         {formatDate(row.created_at)}
                       </TableCell>
                       <TableCell>{row.activityName}</TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right font-semibold text-primary">
                         {row.points_change > 0 ? "+" : ""}
                         {row.points_change} {family.point_name}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {row.badgeName ?? "No badge"}
+                        {row.badgeName ? (
+                          <span className="rounded-full bg-sunshine/30 px-2.5 py-1 text-xs font-semibold text-sunshine-foreground">
+                            {row.badgeName}
+                          </span>
+                        ) : (
+                          "No badge"
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}

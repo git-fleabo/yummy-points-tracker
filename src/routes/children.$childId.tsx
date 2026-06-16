@@ -68,7 +68,7 @@ function ChildHomePage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#fffaf0] px-4">
+      <div className="flex min-h-screen items-center justify-center bg-background px-4">
         <p className="text-sm text-muted-foreground">Loading child home…</p>
       </div>
     );
@@ -76,10 +76,10 @@ function ChildHomePage() {
 
   if (!child || !family) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#fffaf0] px-4">
-        <Card className="w-full max-w-md border-[#f1dfba] bg-white shadow-sm">
+      <div className="flex min-h-screen items-center justify-center bg-background px-4">
+        <Card className="w-full max-w-md border-border bg-card shadow-sm">
           <CardHeader>
-            <CardTitle className="text-xl text-[#3d2a1a]">Child home could not load</CardTitle>
+            <CardTitle className="text-xl text-foreground">Child home could not load</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
@@ -98,7 +98,7 @@ function ChildHomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#fffaf0] px-4 py-8 text-foreground sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-background px-4 py-8 text-foreground sm:px-6 lg:px-8">
       <main className="mx-auto flex w-full max-w-3xl flex-col gap-6">
         <Button asChild variant="outline" className="w-fit">
           <Link to="/dashboard">
@@ -108,19 +108,19 @@ function ChildHomePage() {
         </Button>
 
         {showFirstPoints && (
-          <div className="rounded-md border border-[#f1dfba] bg-white px-4 py-3 text-sm font-medium text-[#3d2a1a] shadow-sm">
+          <div className="rounded-lg border border-sunshine/70 bg-sunshine/25 px-4 py-3 text-sm font-semibold text-sunshine-foreground shadow-sm">
             🌟 First Points unlocked!
           </div>
         )}
 
-        <Card className="border-[#f1dfba] bg-white shadow-sm">
+        <Card className="border-border bg-card shadow-sm">
           <CardContent className="space-y-6 p-6">
             <div className="flex items-center gap-4">
-              <div className="flex size-14 items-center justify-center rounded-full bg-[#fff0b8] text-3xl">
+              <div className="flex size-14 items-center justify-center rounded-full bg-sunshine text-3xl text-sunshine-foreground shadow-sm">
                 {child.avatar_icon ?? "⭐"}
               </div>
               <div>
-                <h1 className="text-3xl font-semibold tracking-normal text-[#3d2a1a]">
+                <h1 className="text-3xl font-semibold tracking-normal text-foreground">
                   {child.name}
                 </h1>
                 <p className="text-sm text-muted-foreground">{family.name}</p>
@@ -129,7 +129,7 @@ function ChildHomePage() {
 
             <div>
               <p className="text-sm text-muted-foreground">Current balance</p>
-              <p className="text-4xl font-semibold text-[#3d2a1a]">
+              <p className="text-4xl font-semibold text-primary">
                 {child.current_balance} {family.point_name}
               </p>
             </div>

@@ -31,7 +31,7 @@ type Child = {
 
 const defaultFamilyName = "My Family";
 const defaultPointName = "Yummy Points";
-const dashboardBuildMarker = "admin-settings-0296dd7";
+const dashboardBuildMarker = "visual-refresh-89e9d78";
 
 function getErrorMessage(err: unknown) {
   if (err instanceof Error) return err.message;
@@ -189,7 +189,7 @@ function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#fffaf0] px-4">
+      <div className="flex min-h-screen items-center justify-center bg-background px-4">
         <p className="text-sm text-muted-foreground">Loading your family dashboard…</p>
       </div>
     );
@@ -197,10 +197,10 @@ function DashboardPage() {
 
   if (!family) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#fffaf0] px-4">
-        <Card className="w-full max-w-md border-[#f1dfba] bg-white shadow-sm">
+      <div className="flex min-h-screen items-center justify-center bg-background px-4">
+        <Card className="w-full max-w-md border-border bg-card shadow-sm">
           <CardHeader>
-            <CardTitle className="text-xl text-[#3d2a1a]">Dashboard could not load</CardTitle>
+            <CardTitle className="text-xl text-foreground">Dashboard could not load</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
@@ -220,15 +220,13 @@ function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#fffaf0] px-4 py-8 text-foreground sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-background px-4 py-8 text-foreground sm:px-6 lg:px-8">
       <main className="mx-auto flex w-full max-w-5xl flex-col gap-8">
         <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-2">
             <p className="text-sm font-medium text-muted-foreground">{family.name}</p>
             <div>
-              <h1 className="text-4xl font-semibold tracking-normal text-[#3d2a1a]">
-                Yummy Points
-              </h1>
+              <h1 className="text-4xl font-semibold tracking-normal text-primary">Yummy Points</h1>
               <p className="mt-2 text-base text-muted-foreground">
                 Turn missed treats into future treats.
               </p>
@@ -257,7 +255,7 @@ function DashboardPage() {
           </div>
         )}
 
-        <Card className="border-[#f1dfba] bg-white/90 shadow-sm">
+        <Card className="border-border bg-card/95 shadow-sm">
           <CardHeader>
             <CardTitle className="text-xl">Add a child</CardTitle>
           </CardHeader>
@@ -292,24 +290,24 @@ function DashboardPage() {
               params={{ childId: child.id }}
               className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              <Card className="h-full border-[#f1dfba] bg-white shadow-sm transition-colors hover:border-[#e7c985] hover:bg-[#fffdf8]">
+              <Card className="h-full border-border bg-card shadow-sm transition-colors hover:border-primary/35 hover:bg-secondary/15 hover:shadow-md">
                 <CardContent className="space-y-5 p-5">
                   <div className="flex items-center gap-3">
-                    <div className="flex size-12 items-center justify-center rounded-full bg-[#fff0b8] text-2xl">
+                    <div className="flex size-12 items-center justify-center rounded-full bg-sunshine text-2xl text-sunshine-foreground shadow-sm">
                       {child.avatar_icon ?? "⭐"}
                     </div>
                     <div>
-                      <h2 className="text-lg font-semibold text-[#3d2a1a]">{child.name}</h2>
+                      <h2 className="text-lg font-semibold text-foreground">{child.name}</h2>
                       <p className="text-sm text-muted-foreground">{family.point_name}</p>
                     </div>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Current balance</p>
-                    <p className="text-3xl font-semibold text-[#3d2a1a]">
+                    <p className="text-3xl font-semibold text-primary">
                       {child.current_balance} {family.point_name}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2 text-sm font-medium text-[#3d2a1a]">
+                  <div className="flex items-center gap-2 text-sm font-medium text-primary">
                     <UserRound aria-hidden="true" className="size-4" />
                     Open child home
                   </div>

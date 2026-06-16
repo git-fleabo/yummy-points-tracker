@@ -54,6 +54,15 @@ those points for rewards.
 - Existing logged activity is not recalculated.
 - Dashboard test marker was updated for this iteration.
 
+### Visual Refresh
+
+- The app palette was refreshed to feel brighter, warmer, and more polished.
+- Shared theme tokens now use warm cream, berry, teal, mango, fresh green, and deep navy tones.
+- Buttons, cards, inputs, child cards, point totals, badge callouts, empty states, Activity History,
+  and Admin Settings were updated to use the refreshed palette.
+- Dashboard test marker was updated for this iteration.
+- No points, badge, activity history, admin settings, or database logic was changed.
+
 ## Routes And Pages
 
 - `/` - existing landing/index route.
@@ -186,6 +195,36 @@ Existing Supabase tables are used without schema changes:
   already-unlocked badges.
 - Follow-up task: add a Supabase-backed family settings table with RLS so settings are shared per
   family.
+
+## Visual Refresh Notes
+
+- Files changed in this iteration:
+  - `src/styles.css`
+  - `src/components/ui/button.tsx`
+  - `src/components/ui/card.tsx`
+  - `src/components/ui/input.tsx`
+  - `src/components/ui/textarea.tsx`
+  - `src/routes/dashboard.tsx`
+  - `src/routes/children.$childId.tsx`
+  - `src/routes/children.$childId_.add-points.tsx`
+  - `src/routes/children.$childId_.activity-history.tsx`
+  - `src/routes/settings.tsx`
+  - `PROJECT_CONTEXT.md`
+- Chosen palette:
+  - Background: soft warm cream / pale peach.
+  - Primary: rich berry / raspberry for primary actions and points emphasis.
+  - Secondary: soft teal / aqua for calm panels and hover states.
+  - Accent: mango / golden yellow for avatars and celebratory badge accents.
+  - Success: fresh green for positive save feedback.
+  - Text: deep navy for readable, warmer-than-black text.
+  - Cards: white / softly tinted panels with subtle borders and shadows.
+- Assumption: visual polish should stay within the existing component system and avoid adding new
+  images or decorative illustration.
+- Known limitation: signed-in visual states were verified through build and code review, but local
+  browser smoke testing only reaches the signed-out flow without test credentials.
+- Follow-up task: add screenshot-based visual regression checks for authenticated dashboard, child
+  home, Add Points, Activity History, and Admin Settings once test credentials or seeded local auth
+  are available.
 
 ## Tech Stack
 

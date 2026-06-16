@@ -113,14 +113,14 @@ function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#fffaf0] px-4">
+      <div className="flex min-h-screen items-center justify-center bg-background px-4">
         <p className="text-sm text-muted-foreground">Loading settings…</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#fffaf0] px-4 py-8 text-foreground sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-background px-4 py-8 text-foreground sm:px-6 lg:px-8">
       <main className="mx-auto flex w-full max-w-4xl flex-col gap-6">
         <Button asChild variant="outline" className="w-fit">
           <Link to="/dashboard">
@@ -129,9 +129,9 @@ function SettingsPage() {
           </Link>
         </Button>
 
-        <Card className="border-[#f1dfba] bg-white shadow-sm">
+        <Card className="border-border bg-card shadow-sm">
           <CardHeader>
-            <CardTitle className="text-2xl text-[#3d2a1a]">Admin Settings</CardTitle>
+            <CardTitle className="text-2xl text-foreground">Admin Settings</CardTitle>
             <p className="text-sm text-muted-foreground">
               Point values and badge thresholds used for new activity.
             </p>
@@ -140,7 +140,7 @@ function SettingsPage() {
             <form className="space-y-8" onSubmit={handleSave}>
               <section className="space-y-4">
                 <div>
-                  <h2 className="text-lg font-semibold text-[#3d2a1a]">Activity point values</h2>
+                  <h2 className="text-lg font-semibold text-foreground">Activity point values</h2>
                   <p className="text-sm text-muted-foreground">
                     These appear as activity choices on Add Points.
                   </p>
@@ -150,7 +150,7 @@ function SettingsPage() {
                   {settings.activityPointValues.map((activity) => (
                     <div
                       key={activity.id}
-                      className="grid gap-3 rounded-md border border-[#f1dfba] bg-[#fffdf8] p-3 sm:grid-cols-[1fr_140px]"
+                      className="grid gap-3 rounded-lg border border-secondary/40 bg-secondary/10 p-3 sm:grid-cols-[1fr_140px]"
                     >
                       <div className="space-y-2">
                         <Label htmlFor={`${activity.id}-name`}>Activity name</Label>
@@ -178,7 +178,7 @@ function SettingsPage() {
 
               <section className="space-y-4">
                 <div>
-                  <h2 className="text-lg font-semibold text-[#3d2a1a]">Badge rules</h2>
+                  <h2 className="text-lg font-semibold text-foreground">Badge rules</h2>
                   <p className="text-sm text-muted-foreground">
                     Thresholds are checked when new points are saved.
                   </p>
@@ -188,10 +188,10 @@ function SettingsPage() {
                   {settings.badgeRules.map((badgeRule) => (
                     <div
                       key={badgeRule.id}
-                      className="grid gap-3 rounded-md border border-[#f1dfba] bg-[#fffdf8] p-3 sm:grid-cols-[1fr_160px]"
+                      className="grid gap-3 rounded-lg border border-sunshine/50 bg-sunshine/15 p-3 sm:grid-cols-[1fr_160px]"
                     >
                       <div>
-                        <p className="text-sm font-medium text-[#3d2a1a]">{badgeRule.name}</p>
+                        <p className="text-sm font-medium text-foreground">{badgeRule.name}</p>
                         <p className="text-sm text-muted-foreground">
                           Unlocks when the child reaches this point total.
                         </p>
@@ -219,7 +219,7 @@ function SettingsPage() {
               )}
 
               {saved && (
-                <div className="rounded-md border border-[#f1dfba] bg-[#fffdf8] px-4 py-3 text-sm font-medium text-[#3d2a1a]">
+                <div className="rounded-lg border border-success/40 bg-success/10 px-4 py-3 text-sm font-semibold text-success">
                   Settings saved.
                 </div>
               )}
