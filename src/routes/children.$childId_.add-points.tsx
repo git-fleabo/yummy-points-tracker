@@ -7,14 +7,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  getAdminSettings,
+  getFirstPointsThreshold,
+  type ActivityPointValue,
+  type AdminSettings,
+} from "@/lib/admin-settings";
 import { getErrorMessage, loadChildForUser, type Child, type Family } from "@/lib/family-data";
 
 export const Route = createFileRoute("/children/$childId_/add-points")({
   head: () => ({ meta: [{ title: "Add Points — Yummy Points" }] }),
   component: AddPointsPage,
 });
-
-const quickAddValues = [1, 2, 5, 10, 20];
 
 type Badge = {
   id: string;
@@ -25,7 +29,10 @@ function AddPointsPage() {
   const navigate = useNavigate();
   const [child, setChild] = useState<Child | null>(null);
   const [family, setFamily] = useState<Family | null>(null);
-  const [selectedAmount, setSelectedAmount] = useState(1);
+  const [settings, setSettings] = useState<AdminSettings>(() => getAdminSettings());
+  const [selectedActivityId, setSelectedActivityId] = useState(
+    () => getAdminSettings().activityPointValues[0]?.id ?? "",
+  );
   const [customAmount, setCustomAmount] = useState("");
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(true);
@@ -50,8 +57,11 @@ function AddPointsPage() {
       const { child: loadedChild, family: loadedFamily } = await loadChildForUser(childId, user.id);
 
       if (isMounted) {
+        const savedSettings = getAdminSettings();
         setChild(loadedChild);
         setFamily(loadedFamily);
+        setSettings(savedSettings);
+        setSelectedActivityId(savedSettings.activityPointValues[0]?.id ?? "");
         setLoading(false);
       }
     }
@@ -68,12 +78,18 @@ function AddPointsPage() {
     };
   }, [childId, navigate]);
 
+  const selectedActivity = settings.activityPointValues.find(
+    (activity) => activity.id === selectedActivityId,
+  );
   const customAmountValue = Number(customAmount);
-  const amount = customAmount.trim() ? customAmountValue : selectedAmount;
+  const amount = customAmount.trim() ? customAmountValue : (selectedActivity?.points ?? 0);
   const canSave = Boolean(child && family && Number.isInteger(amount) && amount > 0);
 
   async function awardFirstPointsBadgeIfNeeded() {
     if (!child) return false;
+    const firstPointsThreshold = getFirstPointsThreshold(settings);
+
+    if (child.current_balance + amount < firstPointsThreshold) return false;
 
     const { data: firstPointsBadge, error: badgeError } = await supabase
       .from("badges")
@@ -125,12 +141,14 @@ function AddPointsPage() {
     setSaving(true);
     setError(null);
 
+    const transactionNote = note.trim() || (!customAmount.trim() ? selectedActivity?.name : null);
+
     const { error: transactionError } = await supabase.from("transactions").insert({
       family_id: family.id,
       child_id: child.id,
       type: "points_added",
       points_change: amount,
-      note: note.trim() || null,
+      note: transactionNote,
     });
 
     if (transactionError) {
@@ -202,21 +220,25 @@ function AddPointsPage() {
           <CardContent>
             <form className="space-y-5" onSubmit={handleSubmit}>
               <div className="space-y-3">
-                <Label>Quick add</Label>
-                <div className="grid grid-cols-5 gap-2">
-                  {quickAddValues.map((value) => (
+                <Label>Activity</Label>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {settings.activityPointValues.map((activity) => (
                     <Button
-                      key={value}
+                      key={activity.id}
                       type="button"
                       variant={
-                        !customAmount.trim() && selectedAmount === value ? "default" : "outline"
+                        !customAmount.trim() && selectedActivityId === activity.id
+                          ? "default"
+                          : "outline"
                       }
                       onClick={() => {
-                        setSelectedAmount(value);
+                        setSelectedActivityId(activity.id);
                         setCustomAmount("");
                       }}
+                      className="h-auto justify-between gap-3 px-3 py-2 text-left"
                     >
-                      +{value}
+                      <span>{activity.name}</span>
+                      <span>+{activity.points}</span>
                     </Button>
                   ))}
                 </div>

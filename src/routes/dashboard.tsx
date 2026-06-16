@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { LogOut, Plus, UserRound } from "lucide-react";
+import { LogOut, Plus, Settings, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -31,7 +31,7 @@ type Child = {
 
 const defaultFamilyName = "My Family";
 const defaultPointName = "Yummy Points";
-const dashboardBuildMarker = "activity-history-5aa1d1b";
+const dashboardBuildMarker = "admin-settings-0296dd7";
 
 function getErrorMessage(err: unknown) {
   if (err instanceof Error) return err.message;
@@ -237,10 +237,18 @@ function DashboardPage() {
               Test marker: {dashboardBuildMarker}
             </p>
           </div>
-          <Button variant="outline" onClick={handleSignOut}>
-            <LogOut aria-hidden="true" />
-            Sign out
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline">
+              <Link to="/settings">
+                <Settings aria-hidden="true" />
+                Settings
+              </Link>
+            </Button>
+            <Button variant="outline" onClick={handleSignOut}>
+              <LogOut aria-hidden="true" />
+              Sign out
+            </Button>
+          </div>
         </header>
 
         {error && (

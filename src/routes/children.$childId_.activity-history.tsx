@@ -12,6 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
+import { getAdminSettings, getFirstPointsThreshold } from "@/lib/admin-settings";
 import { getErrorMessage, loadChildForUser, type Child, type Family } from "@/lib/family-data";
 
 export const Route = createFileRoute("/children/$childId_/activity-history")({
@@ -23,6 +24,7 @@ type Transaction = {
   id: string;
   type: string;
   points_change: number;
+  note: string | null;
   created_at: string;
 };
 
@@ -70,7 +72,7 @@ function ActivityHistoryPage() {
 
       const { data: loadedTransactions, error: transactionsError } = await supabase
         .from("transactions")
-        .select("id, type, points_change, created_at")
+        .select("id, type, points_change, note, created_at")
         .eq("child_id", loadedChild.id)
         .eq("family_id", loadedFamily.id)
         .order("created_at", { ascending: false });
@@ -206,16 +208,21 @@ function ActivityHistoryPage() {
 }
 
 function buildActivityRows(transactions: Transaction[], unlockedBadges: string[]): ActivityRow[] {
+  const firstPointsThreshold = getFirstPointsThreshold(getAdminSettings());
   const chronologicalTransactions = [...transactions].sort(
     (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
   );
-  const firstPointsTransactionId = chronologicalTransactions.find(
-    (transaction) => transaction.type === "points_added" && transaction.points_change > 0,
-  )?.id;
+  let runningPoints = 0;
+  const firstPointsTransactionId = chronologicalTransactions.find((transaction) => {
+    if (transaction.type !== "points_added" || transaction.points_change <= 0) return false;
+
+    runningPoints += transaction.points_change;
+    return runningPoints >= firstPointsThreshold;
+  })?.id;
 
   return transactions.map((transaction) => ({
     ...transaction,
-    activityName: getActivityName(transaction.type),
+    activityName: getActivityName(transaction),
     badgeName:
       transaction.id === firstPointsTransactionId && unlockedBadges.includes("First Points")
         ? "First Points"
@@ -236,7 +243,8 @@ function formatDate(value: string) {
   return dateFormatter.format(date);
 }
 
-function getActivityName(type: string) {
-  if (type === "points_added") return "Points added";
-  return type.replaceAll("_", " ");
+function getActivityName(transaction: Transaction) {
+  if (transaction.note?.trim()) return transaction.note;
+  if (transaction.type === "points_added") return "Points added";
+  return transaction.type.replaceAll("_", " ");
 }

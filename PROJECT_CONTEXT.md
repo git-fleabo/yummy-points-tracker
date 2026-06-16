@@ -45,12 +45,22 @@ those points for rewards.
 - The empty state says "No activity logged yet."
 - No changes were made to existing badge unlock logic or points logic.
 
+### Added: Admin Settings Screen
+
+- Dashboard now links to an Admin Settings screen.
+- Admin Settings shows editable activity point values and badge rule thresholds.
+- Add Points now reads activity point values from Admin Settings for new transactions.
+- First Points badge unlocking now reads its threshold from Admin Settings for new transactions.
+- Existing logged activity is not recalculated.
+- Dashboard test marker was updated for this iteration.
+
 ## Routes And Pages
 
 - `/` - existing landing/index route.
 - `/login` - Supabase email/password login.
 - `/signup` - Supabase signup.
 - `/dashboard` - family dashboard, family bootstrap, child list, add-child form.
+- `/settings` - admin settings for activity point values and badge thresholds.
 - `/children/$childId` - child home screen with balance and parent actions.
 - `/children/$childId/add-points` - add points form for a selected child.
 - `/children/$childId/activity-history` - chronological activity history for a selected child.
@@ -67,6 +77,8 @@ those points for rewards.
   remains hidden.
 - Points entry has quick-add values and a custom amount.
 - Points entry has an optional note only.
+- Admin Settings is intentionally lightweight and local-first until a family settings table is
+  added.
 - No categories for point entries.
 - No photos in v1.
 - No streaks.
@@ -126,6 +138,7 @@ Existing Supabase tables are used without schema changes:
 - Badge unlock failures are console-only; they do not prevent navigation back to the child home.
 - The implementation intentionally relies on existing RLS policies and database triggers.
 - No database schema changes were made for Sprint 2 or the Activity History iteration.
+- No database schema changes were made for Admin Settings.
 
 ## Activity History Notes
 
@@ -142,6 +155,37 @@ Existing Supabase tables are used without schema changes:
   infers First Points display from existing `child_badges` records.
 - Follow-up task: add an explicit activity event or transaction badge reference if future badges
   need precise per-transaction history.
+
+## Admin Settings Notes
+
+- Files changed in this iteration:
+  - `src/lib/admin-settings.ts`
+  - `src/routes/settings.tsx`
+  - `src/routes/dashboard.tsx`
+  - `src/routes/children.$childId_.add-points.tsx`
+  - `src/routes/children.$childId_.activity-history.tsx`
+  - `src/routeTree.gen.ts`
+  - `PROJECT_CONTEXT.md`
+- Point values and badge thresholds are stored in browser `localStorage` under
+  `yummy-points-admin-settings-v1`.
+- Default activity point values live in `src/lib/admin-settings.ts`.
+- Default badge rules live in `src/lib/admin-settings.ts`; currently the only editable rule is
+  `First Points`.
+- Add Points uses the saved activity point values as the activity choices for new transactions.
+- When a saved activity choice is used and the note field is blank, the activity name is saved in
+  the transaction `note`; custom point entries keep the note optional.
+- Activity History displays transaction notes as activity names when present, falling back to the
+  transaction type label.
+- First Points threshold is checked against the child's loaded balance plus the new points amount
+  when saving new activity.
+- Assumption: local browser storage is acceptable for this iteration because there is no existing
+  family settings table.
+- Known limitation: Admin Settings are not shared across browsers, devices, or family members until
+  they are moved into Supabase.
+- Known limitation: changing a badge threshold does not recalculate existing transactions or remove
+  already-unlocked badges.
+- Follow-up task: add a Supabase-backed family settings table with RLS so settings are shared per
+  family.
 
 ## Tech Stack
 
