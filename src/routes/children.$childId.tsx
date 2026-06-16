@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, Gift, Map, Plus } from "lucide-react";
+import { ArrowLeft, Gift, History, Map, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -134,11 +134,17 @@ function ChildHomePage() {
               </p>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2">
               <Button asChild>
                 <Link to="/children/$childId/add-points" params={{ childId: child.id }}>
                   <Plus aria-hidden="true" />
                   Add Points
+                </Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link to="/children/$childId/activity-history" params={{ childId: child.id }}>
+                  <History aria-hidden="true" />
+                  Activity History
                 </Link>
               </Button>
               <Button variant="secondary" disabled>

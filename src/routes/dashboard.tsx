@@ -31,7 +31,7 @@ type Child = {
 
 const defaultFamilyName = "My Family";
 const defaultPointName = "Yummy Points";
-const dashboardBuildMarker = "sprint2-badge-fix-16a7614";
+const dashboardBuildMarker = "activity-history-5aa1d1b";
 
 function getErrorMessage(err: unknown) {
   if (err instanceof Error) return err.message;

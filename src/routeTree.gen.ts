@@ -15,6 +15,7 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ChildrenChildIdRouteImport } from './routes/children.$childId'
 import { Route as ChildrenChildIdAddPointsRouteImport } from './routes/children.$childId_.add-points'
+import { Route as ChildrenChildIdActivityHistoryRouteImport } from './routes/children.$childId_.activity-history'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -47,6 +48,12 @@ const ChildrenChildIdAddPointsRoute =
     path: '/children/$childId/add-points',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ChildrenChildIdActivityHistoryRoute =
+  ChildrenChildIdActivityHistoryRouteImport.update({
+    id: '/children/$childId_/activity-history',
+    path: '/children/$childId/activity-history',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -54,6 +61,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/children/$childId': typeof ChildrenChildIdRoute
+  '/children/$childId/activity-history': typeof ChildrenChildIdActivityHistoryRoute
   '/children/$childId/add-points': typeof ChildrenChildIdAddPointsRoute
 }
 export interface FileRoutesByTo {
@@ -62,6 +70,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/children/$childId': typeof ChildrenChildIdRoute
+  '/children/$childId/activity-history': typeof ChildrenChildIdActivityHistoryRoute
   '/children/$childId/add-points': typeof ChildrenChildIdAddPointsRoute
 }
 export interface FileRoutesById {
@@ -71,6 +80,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/children/$childId': typeof ChildrenChildIdRoute
+  '/children/$childId_/activity-history': typeof ChildrenChildIdActivityHistoryRoute
   '/children/$childId_/add-points': typeof ChildrenChildIdAddPointsRoute
 }
 export interface FileRouteTypes {
@@ -81,6 +91,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/signup'
     | '/children/$childId'
+    | '/children/$childId/activity-history'
     | '/children/$childId/add-points'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -89,6 +100,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/signup'
     | '/children/$childId'
+    | '/children/$childId/activity-history'
     | '/children/$childId/add-points'
   id:
     | '__root__'
@@ -97,6 +109,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/signup'
     | '/children/$childId'
+    | '/children/$childId_/activity-history'
     | '/children/$childId_/add-points'
   fileRoutesById: FileRoutesById
 }
@@ -106,6 +119,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   SignupRoute: typeof SignupRoute
   ChildrenChildIdRoute: typeof ChildrenChildIdRoute
+  ChildrenChildIdActivityHistoryRoute: typeof ChildrenChildIdActivityHistoryRoute
   ChildrenChildIdAddPointsRoute: typeof ChildrenChildIdAddPointsRoute
 }
 
@@ -153,6 +167,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ChildrenChildIdAddPointsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/children/$childId_/activity-history': {
+      id: '/children/$childId_/activity-history'
+      path: '/children/$childId/activity-history'
+      fullPath: '/children/$childId/activity-history'
+      preLoaderRoute: typeof ChildrenChildIdActivityHistoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -162,6 +183,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   SignupRoute: SignupRoute,
   ChildrenChildIdRoute: ChildrenChildIdRoute,
+  ChildrenChildIdActivityHistoryRoute: ChildrenChildIdActivityHistoryRoute,
   ChildrenChildIdAddPointsRoute: ChildrenChildIdAddPointsRoute,
 }
 export const routeTree = rootRouteImport

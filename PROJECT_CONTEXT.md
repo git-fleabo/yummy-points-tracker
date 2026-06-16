@@ -37,6 +37,14 @@ those points for rewards.
 - The unlock success message only appears when a new `child_badges` row is created.
 - The one-time unlock message is handed off with `sessionStorage` instead of route search params.
 
+### Added: Activity History Screen
+
+- Child home now links to an Activity History screen.
+- Activity History shows logged transactions newest first.
+- Each activity row displays date, activity name, points earned, and badge unlocked.
+- The empty state says "No activity logged yet."
+- No changes were made to existing badge unlock logic or points logic.
+
 ## Routes And Pages
 
 - `/` - existing landing/index route.
@@ -45,6 +53,7 @@ those points for rewards.
 - `/dashboard` - family dashboard, family bootstrap, child list, add-child form.
 - `/children/$childId` - child home screen with balance and parent actions.
 - `/children/$childId/add-points` - add points form for a selected child.
+- `/children/$childId/activity-history` - chronological activity history for a selected child.
 
 ## Product Decisions
 
@@ -54,6 +63,8 @@ those points for rewards.
 - Child home exists before child-facing mode.
 - Rewards and Journey appear as disabled coming-soon actions in Sprint 2.
 - Badges remain hidden; only a lightweight one-time unlock message is shown for First Points.
+- Activity History can display badge unlock names for logged activity, while the broader badge UI
+  remains hidden.
 - Points entry has quick-add values and a custom amount.
 - Points entry has an optional note only.
 - No categories for point entries.
@@ -82,11 +93,15 @@ Existing Supabase tables are used without schema changes:
   - Add Points creates rows with `type = "points_added"`,
     positive `points_change`, optional `note`, `family_id`, and `child_id`.
   - Child balance updates are handled by the existing database trigger.
+  - Activity History reads transactions for the selected child and family, ordered by
+    `created_at` descending.
 - `badges`
   - The First Points badge is found via `name = "First Points"`.
 - `child_badges`
   - A row is inserted when a child earns First Points and does not already have it.
   - Badge records remain stored permanently after the one-time UI message is cleared.
+  - Activity History reads existing child badge records and displays First Points on the first
+    positive points transaction when that badge exists.
 
 ## Architectural Decisions
 
@@ -103,12 +118,30 @@ Existing Supabase tables are used without schema changes:
 - The Add Points route is implemented as `children.$childId_.add-points.tsx` so TanStack Router
   treats `/children/$childId/add-points` as a separate screen rather than a nested child-home
   route requiring an `<Outlet />`.
+- The Activity History route follows the same separate-screen route pattern with
+  `children.$childId_.activity-history.tsx`.
 - Badges are currently unlocked client-side after successful transactions.
 - Badge unlock messages use `sessionStorage` for one-time display after navigation back to child
   home.
 - Badge unlock failures are console-only; they do not prevent navigation back to the child home.
 - The implementation intentionally relies on existing RLS policies and database triggers.
-- No database schema changes were made for Sprint 2.
+- No database schema changes were made for Sprint 2 or the Activity History iteration.
+
+## Activity History Notes
+
+- Files changed in this iteration:
+  - `src/routes/children.$childId.tsx`
+  - `src/routes/children.$childId_.activity-history.tsx`
+  - `src/routeTree.gen.ts`
+  - `PROJECT_CONTEXT.md`
+- Activity names are derived from the transaction `type`; `points_added` displays as
+  "Points added".
+- Badge display assumes the current badge model only unlocks First Points after the first
+  successful positive points transaction.
+- Because transactions do not currently store a direct `badge_unlocked` field, Activity History
+  infers First Points display from existing `child_badges` records.
+- Follow-up task: add an explicit activity event or transaction badge reference if future badges
+  need precise per-transaction history.
 
 ## Tech Stack
 
