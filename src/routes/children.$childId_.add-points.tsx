@@ -141,10 +141,13 @@ function AddPointsPage() {
 
     const unlockedFirstPoints = await awardFirstPointsBadgeIfNeeded();
 
+    if (unlockedFirstPoints) {
+      sessionStorage.setItem(`badge-unlocked-${child.id}`, "first-points");
+    }
+
     navigate({
       to: "/children/$childId",
       params: { childId: child.id },
-      search: { firstPoints: unlockedFirstPoints ? "1" : undefined },
     });
   }
 

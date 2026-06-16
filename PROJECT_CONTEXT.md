@@ -35,6 +35,7 @@ those points for rewards.
 - Badge unlock checks `child_badges` before inserting.
 - Badge errors are logged to the console and do not block the saved points transaction.
 - The unlock success message only appears when a new `child_badges` row is created.
+- The one-time unlock message is handed off with `sessionStorage` instead of route search params.
 
 ## Routes And Pages
 
@@ -85,6 +86,7 @@ Existing Supabase tables are used without schema changes:
   - The First Points badge is found via `name = "First Points"`.
 - `child_badges`
   - A row is inserted when a child earns First Points and does not already have it.
+  - Badge records remain stored permanently after the one-time UI message is cleared.
 
 ## Architectural Decisions
 
@@ -102,6 +104,8 @@ Existing Supabase tables are used without schema changes:
   treats `/children/$childId/add-points` as a separate screen rather than a nested child-home
   route requiring an `<Outlet />`.
 - Badges are currently unlocked client-side after successful transactions.
+- Badge unlock messages use `sessionStorage` for one-time display after navigation back to child
+  home.
 - Badge unlock failures are console-only; they do not prevent navigation back to the child home.
 - The implementation intentionally relies on existing RLS policies and database triggers.
 - No database schema changes were made for Sprint 2.

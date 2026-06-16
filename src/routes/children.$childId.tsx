@@ -8,18 +8,15 @@ import { getErrorMessage, loadChildForUser, type Child, type Family } from "@/li
 
 export const Route = createFileRoute("/children/$childId")({
   head: () => ({ meta: [{ title: "Child Home — Yummy Points" }] }),
-  validateSearch: (search: Record<string, unknown>) => ({
-    firstPoints: search.firstPoints === "1",
-  }),
   component: ChildHomePage,
 });
 
 function ChildHomePage() {
   const { childId } = Route.useParams();
-  const { firstPoints } = Route.useSearch();
   const navigate = useNavigate();
   const [child, setChild] = useState<Child | null>(null);
   const [family, setFamily] = useState<Family | null>(null);
+  const [showFirstPoints, setShowFirstPoints] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,6 +38,16 @@ function ChildHomePage() {
       const { child: loadedChild, family: loadedFamily } = await loadChildForUser(childId, user.id);
 
       if (isMounted) {
+        const badgeStorageKey = `badge-unlocked-${childId}`;
+        const unlockedBadge = sessionStorage.getItem(badgeStorageKey);
+
+        if (unlockedBadge === "first-points") {
+          setShowFirstPoints(true);
+          sessionStorage.removeItem(badgeStorageKey);
+        } else {
+          setShowFirstPoints(false);
+        }
+
         setChild(loadedChild);
         setFamily(loadedFamily);
         setLoading(false);
@@ -100,7 +107,7 @@ function ChildHomePage() {
           </Link>
         </Button>
 
-        {firstPoints && (
+        {showFirstPoints && (
           <div className="rounded-md border border-[#f1dfba] bg-white px-4 py-3 text-sm font-medium text-[#3d2a1a] shadow-sm">
             🌟 First Points unlocked!
           </div>
