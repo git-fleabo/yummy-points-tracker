@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, RotateCcw, Save } from "lucide-react";
+import { ArrowLeft, BadgeCheck, FlaskConical, RotateCcw, Save, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import {
   getAdminSettings,
+  getFirstPointsThreshold,
   resetAdminSettings,
   saveAdminSettings,
   type AdminSettings,
@@ -19,12 +20,35 @@ export const Route = createFileRoute("/settings")({
   component: SettingsPage,
 });
 
+type FamilyMember = {
+  family_id: string;
+};
+
+type TestFamily = {
+  id: string;
+  point_name: string;
+};
+
+type TestChild = {
+  id: string;
+  name: string;
+  current_balance: number;
+};
+
+type FirstPointsBadge = {
+  id: string;
+};
+
 function SettingsPage() {
   const navigate = useNavigate();
   const [settings, setSettings] = useState<AdminSettings>(() => getAdminSettings());
+  const [family, setFamily] = useState<TestFamily | null>(null);
+  const [children, setChildren] = useState<TestChild[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [testRunning, setTestRunning] = useState<string | null>(null);
+  const [testStatus, setTestStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -41,8 +65,12 @@ function SettingsPage() {
         return;
       }
 
+      const testData = await loadTestDataForUser(sessionData.session.user.id);
+
       if (isMounted) {
         setSettings(getAdminSettings());
+        setFamily(testData.family);
+        setChildren(testData.children);
         setLoading(false);
       }
     }
@@ -109,6 +137,162 @@ function SettingsPage() {
     setSettings(resetAdminSettings());
     setSaved(true);
     setError(null);
+  }
+
+  async function refreshChildren() {
+    if (!family) return;
+
+    const { data: refreshedChildren, error: childrenError } = await supabase
+      .from("children")
+      .select("id, name, current_balance")
+      .eq("family_id", family.id)
+      .order("created_at", { ascending: true });
+
+    if (childrenError) throw childrenError;
+    setChildren((refreshedChildren ?? []) as TestChild[]);
+  }
+
+  async function runTestAction(actionId: string, action: () => Promise<string>) {
+    setTestRunning(actionId);
+    setError(null);
+    setTestStatus(null);
+
+    try {
+      const message = await action();
+      await refreshChildren();
+      setTestStatus(message);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setTestRunning(null);
+    }
+  }
+
+  async function handleAddSampleActivity() {
+    await runTestAction("sample-activity", async () => {
+      const child = getTestChild(children);
+      if (!family) throw new Error("Family data is not ready yet.");
+      const samplePoints = settings.activityPointValues[0]?.points ?? 1;
+
+      await addTestTransaction({
+        familyId: family.id,
+        childId: child.id,
+        points: samplePoints,
+        note: "Test sample activity",
+      });
+
+      return `Added a sample activity for ${child.name}. It will appear in Activity History.`;
+    });
+  }
+
+  async function handleAddBadgeUnlockingActivity() {
+    await runTestAction("badge-activity", async () => {
+      const child = getTestChild(children);
+      if (!family) throw new Error("Family data is not ready yet.");
+
+      const firstPointsThreshold = getFirstPointsThreshold(settings);
+      const pointsNeeded = Math.max(firstPointsThreshold - child.current_balance, 1);
+
+      await addTestTransaction({
+        familyId: family.id,
+        childId: child.id,
+        points: pointsNeeded,
+        note: "Test badge-unlocking activity",
+      });
+
+      const badgeResult = await awardFirstPointsBadgeIfNeeded(child.id);
+
+      if (badgeResult === "already-unlocked") {
+        return `${child.name} already had the First Points badge. The sample activity was added to Activity History.`;
+      }
+
+      return `Added a badge-unlocking activity for ${child.name}. First Points is now unlocked.`;
+    });
+  }
+
+  async function handleResetPoints() {
+    if (
+      !window.confirm("Reset all child point balances to 0? Activity history will stay in place.")
+    ) {
+      return;
+    }
+
+    await runTestAction("reset-points", async () => {
+      if (!family) throw new Error("Family data is not ready yet.");
+
+      const { error: resetError } = await supabase
+        .from("children")
+        .update({ current_balance: 0 })
+        .eq("family_id", family.id);
+
+      if (resetError) throw resetError;
+      return "Point balances were reset to 0 for this family.";
+    });
+  }
+
+  async function handleResetBadges() {
+    if (
+      !window.confirm(
+        "Reset all unlocked badges for this family? Activity history will stay in place.",
+      )
+    ) {
+      return;
+    }
+
+    await runTestAction("reset-badges", async () => {
+      await deleteChildBadges(children);
+      return "Unlocked badges were reset for this family.";
+    });
+  }
+
+  async function handleClearActivityHistory() {
+    if (!window.confirm("Clear all activity history for this family? This cannot be undone.")) {
+      return;
+    }
+
+    await runTestAction("clear-history", async () => {
+      if (!family) throw new Error("Family data is not ready yet.");
+
+      const { error: deleteError } = await supabase
+        .from("transactions")
+        .delete()
+        .eq("family_id", family.id);
+
+      if (deleteError) throw deleteError;
+      return "Activity history was cleared for this family.";
+    });
+  }
+
+  async function handleResetAllTestData() {
+    if (
+      !window.confirm(
+        "Reset all test data for this family? This will clear activity history, reset badges, and set point balances to 0.",
+      )
+    ) {
+      return;
+    }
+
+    await runTestAction("reset-all", async () => {
+      if (!family) throw new Error("Family data is not ready yet.");
+
+      const { error: deleteTransactionsError } = await supabase
+        .from("transactions")
+        .delete()
+        .eq("family_id", family.id);
+
+      if (deleteTransactionsError) throw deleteTransactionsError;
+
+      await deleteChildBadges(children);
+
+      const { error: resetPointsError } = await supabase
+        .from("children")
+        .update({ current_balance: 0 })
+        .eq("family_id", family.id);
+
+      if (resetPointsError) throw resetPointsError;
+
+      return "All test data was reset for this family.";
+    });
   }
 
   if (loading) {
@@ -212,6 +396,93 @@ function SettingsPage() {
                 </div>
               </section>
 
+              <section className="space-y-4 rounded-lg border border-secondary/40 bg-secondary/10 p-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <FlaskConical aria-hidden="true" className="size-5 text-secondary-foreground" />
+                    <h2 className="text-lg font-semibold text-foreground">Test tools</h2>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Admin-only helpers for checking points, badges, and Activity History. These are
+                    for testing setup and cleanup, not normal daily use.
+                  </p>
+                  <p className="text-xs font-medium text-muted-foreground">
+                    Sample actions use {children[0]?.name ?? "the first child in this family"}.
+                  </p>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={handleAddSampleActivity}
+                    disabled={!family || children.length === 0 || Boolean(testRunning)}
+                  >
+                    <FlaskConical aria-hidden="true" />
+                    {testRunning === "sample-activity" ? "Adding…" : "Add sample activity"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={handleAddBadgeUnlockingActivity}
+                    disabled={!family || children.length === 0 || Boolean(testRunning)}
+                  >
+                    <BadgeCheck aria-hidden="true" />
+                    {testRunning === "badge-activity"
+                      ? "Adding…"
+                      : "Add sample badge-unlocking activity"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleResetPoints}
+                    disabled={!family || children.length === 0 || Boolean(testRunning)}
+                  >
+                    <RotateCcw aria-hidden="true" />
+                    {testRunning === "reset-points" ? "Resetting…" : "Reset points"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleResetBadges}
+                    disabled={!family || children.length === 0 || Boolean(testRunning)}
+                  >
+                    <RotateCcw aria-hidden="true" />
+                    {testRunning === "reset-badges" ? "Resetting…" : "Reset badges"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleClearActivityHistory}
+                    disabled={!family || Boolean(testRunning)}
+                  >
+                    <Trash2 aria-hidden="true" />
+                    {testRunning === "clear-history" ? "Clearing…" : "Clear activity history"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    onClick={handleResetAllTestData}
+                    disabled={!family || Boolean(testRunning)}
+                  >
+                    <Trash2 aria-hidden="true" />
+                    {testRunning === "reset-all" ? "Resetting…" : "Reset all test data"}
+                  </Button>
+                </div>
+
+                {children.length === 0 && (
+                  <div className="rounded-md border border-sunshine/50 bg-sunshine/15 px-4 py-3 text-sm text-sunshine-foreground">
+                    Add a child on the dashboard before using sample activity tools.
+                  </div>
+                )}
+
+                {testStatus && (
+                  <div className="rounded-lg border border-success/40 bg-success/10 px-4 py-3 text-sm font-semibold text-success">
+                    {testStatus}
+                  </div>
+                )}
+              </section>
+
               {error && (
                 <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
                   {error}
@@ -240,4 +511,107 @@ function SettingsPage() {
       </main>
     </div>
   );
+}
+
+async function loadTestDataForUser(userId: string) {
+  const { data: membership, error: membershipError } = await supabase
+    .from("family_members")
+    .select("family_id")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle<FamilyMember>();
+
+  if (membershipError) throw membershipError;
+  if (!membership) return { family: null, children: [] };
+
+  const { data: family, error: familyError } = await supabase
+    .from("families")
+    .select("id, point_name")
+    .eq("id", membership.family_id)
+    .single<TestFamily>();
+
+  if (familyError) throw familyError;
+
+  const { data: children, error: childrenError } = await supabase
+    .from("children")
+    .select("id, name, current_balance")
+    .eq("family_id", family.id)
+    .order("created_at", { ascending: true });
+
+  if (childrenError) throw childrenError;
+
+  return {
+    family,
+    children: (children ?? []) as TestChild[],
+  };
+}
+
+function getTestChild(children: TestChild[]) {
+  const child = children[0];
+  if (!child) throw new Error("Add a child before using sample activity tools.");
+  return child;
+}
+
+async function addTestTransaction({
+  familyId,
+  childId,
+  points,
+  note,
+}: {
+  familyId: string;
+  childId: string;
+  points: number;
+  note: string;
+}) {
+  const { error: transactionError } = await supabase.from("transactions").insert({
+    family_id: familyId,
+    child_id: childId,
+    type: "points_added",
+    points_change: points,
+    note,
+  });
+
+  if (transactionError) throw transactionError;
+}
+
+async function awardFirstPointsBadgeIfNeeded(childId: string) {
+  const { data: firstPointsBadge, error: badgeError } = await supabase
+    .from("badges")
+    .select("id")
+    .eq("name", "First Points")
+    .maybeSingle<FirstPointsBadge>();
+
+  if (badgeError) throw badgeError;
+  if (!firstPointsBadge) throw new Error('Could not find the "First Points" badge.');
+
+  const { data: existingChildBadge, error: existingBadgeError } = await supabase
+    .from("child_badges")
+    .select("id")
+    .eq("child_id", childId)
+    .eq("badge_id", firstPointsBadge.id)
+    .maybeSingle<{ id: string }>();
+
+  if (existingBadgeError) throw existingBadgeError;
+  if (existingChildBadge) return "already-unlocked";
+
+  const { error: childBadgeError } = await supabase.from("child_badges").insert({
+    child_id: childId,
+    badge_id: firstPointsBadge.id,
+  });
+
+  if (childBadgeError) throw childBadgeError;
+  return "unlocked";
+}
+
+async function deleteChildBadges(children: TestChild[]) {
+  const childIds = children.map((child) => child.id);
+  if (childIds.length === 0) return;
+
+  const { error: deleteError } = await supabase
+    .from("child_badges")
+    .delete()
+    .in("child_id", childIds);
+
+  if (deleteError) throw deleteError;
 }
