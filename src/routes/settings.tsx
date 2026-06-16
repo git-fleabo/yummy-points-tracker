@@ -36,6 +36,11 @@ type TestChild = {
   current_balance: number;
 };
 
+type TestActionResult = {
+  message: string;
+  childId?: string;
+};
+
 function SettingsPage() {
   const navigate = useNavigate();
   const [settings, setSettings] = useState<AdminSettings>(() => getAdminSettings());
@@ -45,7 +50,7 @@ function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [testRunning, setTestRunning] = useState<string | null>(null);
-  const [testStatus, setTestStatus] = useState<string | null>(null);
+  const [testStatus, setTestStatus] = useState<TestActionResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -149,15 +154,15 @@ function SettingsPage() {
     setChildren((refreshedChildren ?? []) as TestChild[]);
   }
 
-  async function runTestAction(actionId: string, action: () => Promise<string>) {
+  async function runTestAction(actionId: string, action: () => Promise<TestActionResult>) {
     setTestRunning(actionId);
     setError(null);
     setTestStatus(null);
 
     try {
-      const message = await action();
+      const result = await action();
       await refreshChildren();
-      setTestStatus(message);
+      setTestStatus(result);
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -180,7 +185,7 @@ function SettingsPage() {
         settings,
       });
 
-      return "Sample activity added";
+      return { message: "Sample activity added", childId: child.id };
     });
   }
 
@@ -202,7 +207,7 @@ function SettingsPage() {
         requireFirstPointsUnlock: true,
       });
 
-      return "Sample badge activity added";
+      return { message: "Sample badge activity added", childId: child.id };
     });
   }
 
@@ -222,7 +227,7 @@ function SettingsPage() {
         .eq("family_id", family.id);
 
       if (resetError) throw resetError;
-      return "Point balances were reset to 0 for this family.";
+      return { message: "Point balances were reset to 0 for this family." };
     });
   }
 
@@ -237,7 +242,7 @@ function SettingsPage() {
 
     await runTestAction("reset-badges", async () => {
       await deleteChildBadges(children);
-      return "Unlocked badges were reset for this family.";
+      return { message: "Unlocked badges were reset for this family." };
     });
   }
 
@@ -255,7 +260,8 @@ function SettingsPage() {
         .eq("family_id", family.id);
 
       if (deleteError) throw deleteError;
-      return "Activity history was cleared for this family.";
+      await verifyActivityHistoryCleared(family.id);
+      return { message: "Activity history was cleared for this family." };
     });
   }
 
@@ -277,6 +283,7 @@ function SettingsPage() {
         .eq("family_id", family.id);
 
       if (deleteTransactionsError) throw deleteTransactionsError;
+      await verifyActivityHistoryCleared(family.id);
 
       await deleteChildBadges(children);
 
@@ -286,8 +293,9 @@ function SettingsPage() {
         .eq("family_id", family.id);
 
       if (resetPointsError) throw resetPointsError;
+      await verifyPointsReset(family.id);
 
-      return "All test data was reset for this family.";
+      return { message: "All test data was reset for this family." };
     });
   }
 
@@ -473,8 +481,18 @@ function SettingsPage() {
                 )}
 
                 {testStatus && (
-                  <div className="rounded-lg border border-success/40 bg-success/10 px-4 py-3 text-sm font-semibold text-success">
-                    {testStatus}
+                  <div className="flex flex-col gap-2 rounded-lg border border-success/40 bg-success/10 px-4 py-3 text-sm font-semibold text-success sm:flex-row sm:items-center sm:justify-between">
+                    <span>{testStatus.message}</span>
+                    {testStatus.childId && (
+                      <Button asChild size="sm" variant="outline" className="w-fit bg-card">
+                        <Link
+                          to="/children/$childId/activity-history"
+                          params={{ childId: testStatus.childId }}
+                        >
+                          View Activity History
+                        </Link>
+                      </Button>
+                    )}
                   </div>
                 )}
               </section>
@@ -579,7 +597,7 @@ async function getBadgeUnlockTestChild(children: TestChild[]) {
 
   if (!childWithoutBadge) {
     throw new Error(
-      "All children already have the First Points badge. Reset badges before trying this sample.",
+      "All children still have the First Points badge. Reset badges first; if you already did, the reset did not remove badge records.",
     );
   }
 
@@ -590,10 +608,61 @@ async function deleteChildBadges(children: TestChild[]) {
   const childIds = children.map((child) => child.id);
   if (childIds.length === 0) return;
 
+  const badgeIdsBeforeDelete = await loadChildBadgeIds(childIds);
+  if (badgeIdsBeforeDelete.length === 0) return;
+
   const { error: deleteError } = await supabase
     .from("child_badges")
     .delete()
     .in("child_id", childIds);
 
   if (deleteError) throw deleteError;
+
+  const remainingBadgeIds = await loadChildBadgeIds(childIds);
+  if (remainingBadgeIds.length > 0) {
+    throw new Error(
+      "Badge reset did not remove badge records. Check the database delete policy for child_badges.",
+    );
+  }
+}
+
+async function loadChildBadgeIds(childIds: string[]) {
+  const { data: childBadges, error: childBadgesError } = await supabase
+    .from("child_badges")
+    .select("id")
+    .in("child_id", childIds);
+
+  if (childBadgesError) throw childBadgesError;
+  return (childBadges ?? []).map((childBadge) => childBadge.id);
+}
+
+async function verifyActivityHistoryCleared(familyId: string) {
+  const { data: remainingTransactions, error: remainingTransactionsError } = await supabase
+    .from("transactions")
+    .select("id")
+    .eq("family_id", familyId)
+    .limit(1);
+
+  if (remainingTransactionsError) throw remainingTransactionsError;
+
+  if ((remainingTransactions ?? []).length > 0) {
+    throw new Error(
+      "Activity history was not cleared. Check the database delete policy for transactions.",
+    );
+  }
+}
+
+async function verifyPointsReset(familyId: string) {
+  const { data: childrenWithPoints, error: childrenError } = await supabase
+    .from("children")
+    .select("id")
+    .eq("family_id", familyId)
+    .gt("current_balance", 0)
+    .limit(1);
+
+  if (childrenError) throw childrenError;
+
+  if ((childrenWithPoints ?? []).length > 0) {
+    throw new Error("Point balances were not reset.");
+  }
 }

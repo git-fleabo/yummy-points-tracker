@@ -13,18 +13,15 @@ project. Read this before making changes.
 - Current implementation supports auth, family bootstrap, child profiles, child home, adding
   points, First Points badge unlock, Activity History, Admin Settings, a brighter visual palette,
   and Admin Settings test tools.
-- Latest local work fixed the Admin Settings sample test buttons so they use the same point logging
-  and badge unlock flow as Add Points.
+- Latest local work clarified Admin Settings test tool behavior, added Activity History links after
+  sample actions, and made reset tools verify that Supabase deletes/updates actually took effect.
 - Latest local work is not committed yet.
 - Current uncommitted files:
-  - `/Users/noam/Documents/Codex/yummy-points-tracker/src/lib/points-flow.ts`
-  - `/Users/noam/Documents/Codex/yummy-points-tracker/src/routes/children.$childId_.add-points.tsx`
-  - `/Users/noam/Documents/Codex/yummy-points-tracker/src/routes/children.$childId_.activity-history.tsx`
   - `/Users/noam/Documents/Codex/yummy-points-tracker/src/routes/settings.tsx`
   - `/Users/noam/Documents/Codex/yummy-points-tracker/PROJECT_CONTEXT.md`
 - Verification already run after latest change:
   - `npm run build` passes.
-  - `npx eslint src/lib/points-flow.ts src/routes/settings.tsx src/routes/children.\$childId_.add-points.tsx src/routes/children.\$childId_.activity-history.tsx` passes.
+  - `npx eslint src/routes/settings.tsx` passes.
   - `git diff --check` passes.
   - Full `npm run lint` currently fails on pre-existing formatting issues in unrelated files:
     `src/routes/__root.tsx`, `src/routes/login.tsx`, and `src/routes/signup.tsx`, plus existing
@@ -240,6 +237,7 @@ project. Read this before making changes.
   - Can unlock First Points if the normal badge rules say it should.
   - Appears in Activity History.
   - Shows the success message `"Sample activity added"` when complete.
+  - The success state includes a "View Activity History" link for the affected child.
 - "Add sample badge-unlocking activity":
   - Calls the shared `addPointsActivity()` helper used by Add Points.
   - Uses note `"Test badge-unlocking activity"`.
@@ -250,11 +248,26 @@ project. Read this before making changes.
     Admin Settings error area.
   - Appears in Activity History with the First Points badge shown on the unlocking transaction.
   - Shows the success message `"Sample badge activity added"` when complete.
+  - The success state includes a "View Activity History" link for the affected child.
 - Root cause fixed in this iteration:
   - The sample buttons used settings-local helper functions that inserted transactions directly
     instead of reusing the Add Points transaction/badge path. This made the buttons fragile and kept
     badge-specific failures outside the normal app flow. The fix extracted the real flow into
     `addPointsActivity()` and wired both Add Points and Admin Settings to it.
+- Root cause clarified after follow-up:
+  - Reset tools could report success after Supabase returned no error, even when delete/update
+    policies prevented rows from changing. The sample badge action then correctly saw existing
+    `child_badges` rows and refused to fabricate a duplicate unlock.
+- Follow-up fix after real use:
+  - Reset actions now verify that deletes/updates actually took effect before showing success.
+  - If `child_badges` rows remain after Reset badges, the UI shows:
+    `"Badge reset did not remove badge records. Check the database delete policy for child_badges."`
+  - If `transactions` rows remain after Clear activity history or Reset all test data, the UI shows:
+    `"Activity history was not cleared. Check the database delete policy for transactions."`
+  - If points remain after Reset all test data, the UI shows:
+    `"Point balances were not reset."`
+  - If all children still have First Points, the badge sample button explains that reset did not
+    remove badge records instead of implying the user simply forgot to reset.
 - Assumptions made:
   - The existing database trigger remains responsible for increasing `children.current_balance`
     after a `transactions` insert.
@@ -266,13 +279,16 @@ project. Read this before making changes.
   - Leaves history in place.
 - "Reset badges":
   - Deletes `child_badges` rows for the family's children.
+  - Verifies no `child_badges` rows remain for those children before showing success.
   - Leaves history in place.
 - "Clear activity history":
   - Deletes the family's `transactions` rows.
+  - Verifies no `transactions` rows remain for the family before showing success.
 - "Reset all test data":
   - Deletes the family's `transactions` rows.
   - Deletes `child_badges` rows for the family's children.
   - Sets all child balances in the family to 0.
+  - Verifies each reset step before showing success.
 
 ## Visual System
 
