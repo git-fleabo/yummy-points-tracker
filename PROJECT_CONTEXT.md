@@ -13,14 +13,18 @@ project. Read this before making changes.
 - Current implementation supports auth, family bootstrap, child profiles, child home, adding
   points, First Points badge unlock, Activity History, Admin Settings, a brighter visual palette,
   and Admin Settings test tools.
-- Latest local work added the Admin Settings "Test tools" section.
+- Latest local work fixed the Admin Settings sample test buttons so they use the same point logging
+  and badge unlock flow as Add Points.
 - Latest local work is not committed yet.
 - Current uncommitted files:
+  - `/Users/noam/Documents/Codex/yummy-points-tracker/src/lib/points-flow.ts`
+  - `/Users/noam/Documents/Codex/yummy-points-tracker/src/routes/children.$childId_.add-points.tsx`
+  - `/Users/noam/Documents/Codex/yummy-points-tracker/src/routes/children.$childId_.activity-history.tsx`
   - `/Users/noam/Documents/Codex/yummy-points-tracker/src/routes/settings.tsx`
   - `/Users/noam/Documents/Codex/yummy-points-tracker/PROJECT_CONTEXT.md`
 - Verification already run after latest change:
   - `npm run build` passes.
-  - `npx eslint src/routes/settings.tsx` passes.
+  - `npx eslint src/lib/points-flow.ts src/routes/settings.tsx src/routes/children.\$childId_.add-points.tsx src/routes/children.\$childId_.activity-history.tsx` passes.
   - `git diff --check` passes.
   - Full `npm run lint` currently fails on pre-existing formatting issues in unrelated files:
     `src/routes/__root.tsx`, `src/routes/login.tsx`, and `src/routes/signup.tsx`, plus existing
@@ -115,6 +119,8 @@ project. Read this before making changes.
   - `/Users/noam/Documents/Codex/yummy-points-tracker/src/routeTree.gen.ts`
 - Shared family/child loader:
   - `/Users/noam/Documents/Codex/yummy-points-tracker/src/lib/family-data.ts`
+- Shared points and First Points badge flow:
+  - `/Users/noam/Documents/Codex/yummy-points-tracker/src/lib/points-flow.ts`
 - Local Admin Settings defaults/storage:
   - `/Users/noam/Documents/Codex/yummy-points-tracker/src/lib/admin-settings.ts`
 - Supabase client:
@@ -163,7 +169,8 @@ project. Read this before making changes.
 - Dashboard child cards link to child home.
 - Child home shows current balance and parent actions.
 - Add Points reads saved activity point choices from local Admin Settings.
-- Add Points inserts a `transactions` row with:
+- Add Points calls the shared `addPointsActivity()` helper in `src/lib/points-flow.ts`.
+- `addPointsActivity()` inserts a `transactions` row with:
   - `type = "points_added"`
   - positive `points_change`
   - `family_id`
@@ -176,7 +183,8 @@ project. Read this before making changes.
 ### First Points Badge
 
 - Badge lookup uses `badges.name = "First Points"`.
-- Add Points checks whether the child already has the badge before inserting into `child_badges`.
+- Add Points checks whether the child already has the badge before inserting into `child_badges`
+  through the shared `addPointsActivity()` helper.
 - First Points threshold is read from Admin Settings local storage.
 - Badge errors are logged to the console and do not block the saved points transaction.
 - The one-time child-home success message is passed through `sessionStorage` key
@@ -188,8 +196,9 @@ project. Read this before making changes.
 - Rows display date, activity name, points earned, and badge unlocked.
 - Activity names come from `transactions.note` when present, otherwise a label derived from
   `transactions.type`.
-- Activity History infers First Points display from existing `child_badges` records and the first
-  positive transaction that reaches the current threshold.
+- Activity History reads `child_badges.earned_at` and shows First Points on the positive transaction
+  immediately before the badge was earned. It falls back to the first positive transaction that
+  reaches the current threshold when needed.
 - There is no explicit per-transaction badge reference yet.
 
 ### Admin Settings
@@ -225,17 +234,33 @@ project. Read this before making changes.
 - Tools load the signed-in user's first family membership and use that family's children.
 - Sample actions currently target the first child in the family.
 - "Add sample activity":
-  - Inserts a normal `points_added` transaction.
+  - Calls the shared `addPointsActivity()` helper used by Add Points.
   - Uses note `"Test sample activity"`.
   - Uses the first configured activity point value.
+  - Can unlock First Points if the normal badge rules say it should.
   - Appears in Activity History.
+  - Shows the success message `"Sample activity added"` when complete.
 - "Add sample badge-unlocking activity":
-  - Inserts a normal `points_added` transaction.
+  - Calls the shared `addPointsActivity()` helper used by Add Points.
   - Uses note `"Test badge-unlocking activity"`.
-  - Amount is enough to reach the current First Points threshold from the child's loaded balance,
+  - Chooses the first child in the family that does not already have First Points.
+  - Amount is enough to reach the current First Points threshold from that child's loaded balance,
     with a minimum of 1 point.
-  - Checks for the `First Points` badge and inserts `child_badges` only if not already present.
-  - Appears in Activity History.
+  - Requires the normal First Points badge insert to succeed; failures are shown visibly in the
+    Admin Settings error area.
+  - Appears in Activity History with the First Points badge shown on the unlocking transaction.
+  - Shows the success message `"Sample badge activity added"` when complete.
+- Root cause fixed in this iteration:
+  - The sample buttons used settings-local helper functions that inserted transactions directly
+    instead of reusing the Add Points transaction/badge path. This made the buttons fragile and kept
+    badge-specific failures outside the normal app flow. The fix extracted the real flow into
+    `addPointsActivity()` and wired both Add Points and Admin Settings to it.
+- Assumptions made:
+  - The existing database trigger remains responsible for increasing `children.current_balance`
+    after a `transactions` insert.
+  - The app currently has only one implemented badge flow: First Points.
+  - If every child already has First Points, the badge sample button should show an error asking the
+    parent to reset badges first rather than deleting or bypassing existing badge state.
 - "Reset points":
   - Sets all child balances in the family to 0.
   - Leaves history in place.

@@ -14,6 +14,7 @@ import {
   type AdminSettings,
 } from "@/lib/admin-settings";
 import { getErrorMessage } from "@/lib/family-data";
+import { addPointsActivity } from "@/lib/points-flow";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({ meta: [{ title: "Admin Settings — Yummy Points" }] }),
@@ -33,10 +34,6 @@ type TestChild = {
   id: string;
   name: string;
   current_balance: number;
-};
-
-type FirstPointsBadge = {
-  id: string;
 };
 
 function SettingsPage() {
@@ -174,39 +171,38 @@ function SettingsPage() {
       if (!family) throw new Error("Family data is not ready yet.");
       const samplePoints = settings.activityPointValues[0]?.points ?? 1;
 
-      await addTestTransaction({
+      await addPointsActivity({
         familyId: family.id,
         childId: child.id,
+        currentBalance: child.current_balance,
         points: samplePoints,
         note: "Test sample activity",
+        settings,
       });
 
-      return `Added a sample activity for ${child.name}. It will appear in Activity History.`;
+      return "Sample activity added";
     });
   }
 
   async function handleAddBadgeUnlockingActivity() {
     await runTestAction("badge-activity", async () => {
-      const child = getTestChild(children);
       if (!family) throw new Error("Family data is not ready yet.");
 
+      const child = await getBadgeUnlockTestChild(children);
       const firstPointsThreshold = getFirstPointsThreshold(settings);
       const pointsNeeded = Math.max(firstPointsThreshold - child.current_balance, 1);
 
-      await addTestTransaction({
+      await addPointsActivity({
         familyId: family.id,
         childId: child.id,
+        currentBalance: child.current_balance,
         points: pointsNeeded,
         note: "Test badge-unlocking activity",
+        settings,
+        requireFirstPointsUnlock: true,
       });
 
-      const badgeResult = await awardFirstPointsBadgeIfNeeded(child.id);
-
-      if (badgeResult === "already-unlocked") {
-        return `${child.name} already had the First Points badge. The sample activity was added to Activity History.`;
-      }
-
-      return `Added a badge-unlocking activity for ${child.name}. First Points is now unlocked.`;
+      return "Sample badge activity added";
     });
   }
 
@@ -553,55 +549,41 @@ function getTestChild(children: TestChild[]) {
   return child;
 }
 
-async function addTestTransaction({
-  familyId,
-  childId,
-  points,
-  note,
-}: {
-  familyId: string;
-  childId: string;
-  points: number;
-  note: string;
-}) {
-  const { error: transactionError } = await supabase.from("transactions").insert({
-    family_id: familyId,
-    child_id: childId,
-    type: "points_added",
-    points_change: points,
-    note,
-  });
+async function getBadgeUnlockTestChild(children: TestChild[]) {
+  getTestChild(children);
 
-  if (transactionError) throw transactionError;
-}
-
-async function awardFirstPointsBadgeIfNeeded(childId: string) {
   const { data: firstPointsBadge, error: badgeError } = await supabase
     .from("badges")
     .select("id")
     .eq("name", "First Points")
-    .maybeSingle<FirstPointsBadge>();
+    .maybeSingle<{ id: string }>();
 
   if (badgeError) throw badgeError;
   if (!firstPointsBadge) throw new Error('Could not find the "First Points" badge.');
 
-  const { data: existingChildBadge, error: existingBadgeError } = await supabase
+  const { data: existingChildBadges, error: existingBadgeError } = await supabase
     .from("child_badges")
-    .select("id")
-    .eq("child_id", childId)
-    .eq("badge_id", firstPointsBadge.id)
-    .maybeSingle<{ id: string }>();
+    .select("child_id")
+    .in(
+      "child_id",
+      children.map((child) => child.id),
+    )
+    .eq("badge_id", firstPointsBadge.id);
 
   if (existingBadgeError) throw existingBadgeError;
-  if (existingChildBadge) return "already-unlocked";
 
-  const { error: childBadgeError } = await supabase.from("child_badges").insert({
-    child_id: childId,
-    badge_id: firstPointsBadge.id,
-  });
+  const childIdsWithBadge = new Set(
+    (existingChildBadges ?? []).map((childBadge) => childBadge.child_id),
+  );
+  const childWithoutBadge = children.find((child) => !childIdsWithBadge.has(child.id));
 
-  if (childBadgeError) throw childBadgeError;
-  return "unlocked";
+  if (!childWithoutBadge) {
+    throw new Error(
+      "All children already have the First Points badge. Reset badges before trying this sample.",
+    );
+  }
+
+  return childWithoutBadge;
 }
 
 async function deleteChildBadges(children: TestChild[]) {

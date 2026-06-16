@@ -29,6 +29,7 @@ type Transaction = {
 };
 
 type ChildBadge = {
+  earned_at: string;
   badges: { name: string } | { name: string }[] | null;
 };
 
@@ -49,7 +50,7 @@ function ActivityHistoryPage() {
   const [child, setChild] = useState<Child | null>(null);
   const [family, setFamily] = useState<Family | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [unlockedBadges, setUnlockedBadges] = useState<string[]>([]);
+  const [unlockedBadges, setUnlockedBadges] = useState<EarnedBadge[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -81,7 +82,7 @@ function ActivityHistoryPage() {
 
       const { data: loadedBadges, error: badgesError } = await supabase
         .from("child_badges")
-        .select("badges(name)")
+        .select("earned_at, badges(name)")
         .eq("child_id", loadedChild.id);
 
       if (badgesError) throw badgesError;
@@ -213,34 +214,73 @@ function ActivityHistoryPage() {
   );
 }
 
-function buildActivityRows(transactions: Transaction[], unlockedBadges: string[]): ActivityRow[] {
+type EarnedBadge = {
+  name: string;
+  earnedAt: string;
+};
+
+function buildActivityRows(
+  transactions: Transaction[],
+  unlockedBadges: EarnedBadge[],
+): ActivityRow[] {
   const firstPointsThreshold = getFirstPointsThreshold(getAdminSettings());
   const chronologicalTransactions = [...transactions].sort(
     (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
   );
-  let runningPoints = 0;
-  const firstPointsTransactionId = chronologicalTransactions.find((transaction) => {
-    if (transaction.type !== "points_added" || transaction.points_change <= 0) return false;
-
-    runningPoints += transaction.points_change;
-    return runningPoints >= firstPointsThreshold;
-  })?.id;
+  const firstPointsBadge = unlockedBadges.find((badge) => badge.name === "First Points");
+  const firstPointsTransactionId = firstPointsBadge
+    ? getFirstPointsTransactionId(
+        chronologicalTransactions,
+        firstPointsThreshold,
+        firstPointsBadge.earnedAt,
+      )
+    : null;
 
   return transactions.map((transaction) => ({
     ...transaction,
     activityName: getActivityName(transaction),
-    badgeName:
-      transaction.id === firstPointsTransactionId && unlockedBadges.includes("First Points")
-        ? "First Points"
-        : null,
+    badgeName: transaction.id === firstPointsTransactionId ? "First Points" : null,
   }));
 }
 
 function extractBadgeNames(childBadges: ChildBadge[]) {
   return childBadges
-    .flatMap((childBadge) => childBadge.badges ?? [])
-    .map((badge) => badge.name)
-    .filter(Boolean);
+    .flatMap((childBadge) =>
+      [childBadge.badges ?? []].flat().map((badge) => ({
+        name: badge.name,
+        earnedAt: childBadge.earned_at,
+      })),
+    )
+    .filter((badge) => Boolean(badge.name));
+}
+
+function getFirstPointsTransactionId(
+  chronologicalTransactions: Transaction[],
+  firstPointsThreshold: number,
+  earnedAt: string,
+) {
+  const earnedAtTime = new Date(earnedAt).getTime();
+
+  if (!Number.isNaN(earnedAtTime)) {
+    const unlockTransaction = [...chronologicalTransactions]
+      .reverse()
+      .find(
+        (transaction) =>
+          transaction.type === "points_added" &&
+          transaction.points_change > 0 &&
+          new Date(transaction.created_at).getTime() <= earnedAtTime + 5000,
+      );
+
+    if (unlockTransaction) return unlockTransaction.id;
+  }
+
+  let runningPoints = 0;
+  return chronologicalTransactions.find((transaction) => {
+    if (transaction.type !== "points_added" || transaction.points_change <= 0) return false;
+
+    runningPoints += transaction.points_change;
+    return runningPoints >= firstPointsThreshold;
+  })?.id;
 }
 
 function formatDate(value: string) {

@@ -9,20 +9,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import {
   getAdminSettings,
-  getFirstPointsThreshold,
   type ActivityPointValue,
   type AdminSettings,
 } from "@/lib/admin-settings";
 import { getErrorMessage, loadChildForUser, type Child, type Family } from "@/lib/family-data";
+import { addPointsActivity } from "@/lib/points-flow";
 
 export const Route = createFileRoute("/children/$childId_/add-points")({
   head: () => ({ meta: [{ title: "Add Points — Yummy Points" }] }),
   component: AddPointsPage,
 });
-
-type Badge = {
-  id: string;
-};
 
 function AddPointsPage() {
   const { childId } = Route.useParams();
@@ -85,55 +81,6 @@ function AddPointsPage() {
   const amount = customAmount.trim() ? customAmountValue : (selectedActivity?.points ?? 0);
   const canSave = Boolean(child && family && Number.isInteger(amount) && amount > 0);
 
-  async function awardFirstPointsBadgeIfNeeded() {
-    if (!child) return false;
-    const firstPointsThreshold = getFirstPointsThreshold(settings);
-
-    if (child.current_balance + amount < firstPointsThreshold) return false;
-
-    const { data: firstPointsBadge, error: badgeError } = await supabase
-      .from("badges")
-      .select("id")
-      .eq("name", "First Points")
-      .maybeSingle<Badge>();
-
-    if (badgeError) {
-      console.error("Could not load First Points badge.", badgeError);
-      return false;
-    }
-
-    if (!firstPointsBadge) {
-      console.error('Could not find "First Points" badge.');
-      return false;
-    }
-
-    const { data: existingChildBadge, error: existingBadgeError } = await supabase
-      .from("child_badges")
-      .select("id")
-      .eq("child_id", child.id)
-      .eq("badge_id", firstPointsBadge.id)
-      .maybeSingle<{ id: string }>();
-
-    if (existingBadgeError) {
-      console.error("Could not check First Points badge.", existingBadgeError);
-      return false;
-    }
-
-    if (existingChildBadge) return false;
-
-    const { error: childBadgeError } = await supabase.from("child_badges").insert({
-      child_id: child.id,
-      badge_id: firstPointsBadge.id,
-    });
-
-    if (childBadgeError) {
-      console.error("Could not unlock First Points badge.", childBadgeError);
-      return false;
-    }
-
-    return true;
-  }
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!child || !family || !canSave) return;
@@ -143,30 +90,28 @@ function AddPointsPage() {
 
     const transactionNote = note.trim() || (!customAmount.trim() ? selectedActivity?.name : null);
 
-    const { error: transactionError } = await supabase.from("transactions").insert({
-      family_id: family.id,
-      child_id: child.id,
-      type: "points_added",
-      points_change: amount,
-      note: transactionNote,
-    });
+    try {
+      const result = await addPointsActivity({
+        familyId: family.id,
+        childId: child.id,
+        currentBalance: child.current_balance,
+        points: amount,
+        note: transactionNote,
+        settings,
+      });
 
-    if (transactionError) {
-      setError(transactionError.message);
+      if (result.unlockedFirstPoints) {
+        sessionStorage.setItem(`badge-unlocked-${child.id}`, "first-points");
+      }
+
+      navigate({
+        to: "/children/$childId",
+        params: { childId: child.id },
+      });
+    } catch (err) {
+      setError(getErrorMessage(err));
       setSaving(false);
-      return;
     }
-
-    const unlockedFirstPoints = await awardFirstPointsBadgeIfNeeded();
-
-    if (unlockedFirstPoints) {
-      sessionStorage.setItem(`badge-unlocked-${child.id}`, "first-points");
-    }
-
-    navigate({
-      to: "/children/$childId",
-      params: { childId: child.id },
-    });
   }
 
   if (loading) {
