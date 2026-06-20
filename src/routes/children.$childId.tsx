@@ -146,13 +146,17 @@ function ChildHomePage() {
                   Activity History
                 </Link>
               </Button>
-              <Button variant="secondary" disabled>
-                <Gift aria-hidden="true" />
-                Rewards coming soon
+              <Button asChild variant="secondary">
+                <Link to="/children/$childId/rewards" params={{ childId: child.id }}>
+                  <Gift aria-hidden="true" />
+                  Rewards
+                </Link>
               </Button>
-              <Button variant="secondary" disabled>
-                <Map aria-hidden="true" />
-                Journey coming soon
+              <Button asChild variant="secondary">
+                <Link to="/children/$childId/journey" params={{ childId: child.id }}>
+                  <Map aria-hidden="true" />
+                  Journey
+                </Link>
               </Button>
             </div>
           </CardContent>

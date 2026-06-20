@@ -11,8 +11,8 @@ project. Read this before making changes.
 - Core idea: parents award points when a child misses a treat or experience; children can later use
   points for rewards.
 - Current implementation supports auth, family bootstrap, child profiles, child home, adding
-  points, First Points badge unlock, Activity History, Admin Settings, a brighter visual palette,
-  and Admin Settings test tools.
+  points, reward creation/redemption, Journey, First Points badge unlock, Activity History, Admin
+  Settings, a brighter visual palette, and Admin Settings test tools.
 - Recent committed work fixed the Admin Settings "Reset badges" test tool by adding the missing
   `child_badges` DELETE RLS policy and clearing pending local badge celebration state after reset.
 - Latest committed work adds a Test child picker to Admin Settings test tools so sample actions,
@@ -142,6 +142,10 @@ project. Read this before making changes.
   - `/Users/noam/Documents/Codex/yummy-points-tracker/src/routes/children.$childId_.add-points.tsx`
 - `/children/$childId/activity-history`
   - `/Users/noam/Documents/Codex/yummy-points-tracker/src/routes/children.$childId_.activity-history.tsx`
+- `/children/$childId/rewards`
+  - `/Users/noam/Documents/Codex/yummy-points-tracker/src/routes/children.$childId_.rewards.tsx`
+- `/children/$childId/journey`
+  - `/Users/noam/Documents/Codex/yummy-points-tracker/src/routes/children.$childId_.journey.tsx`
 - Generated router tree:
   - `/Users/noam/Documents/Codex/yummy-points-tracker/src/routeTree.gen.ts`
 - Shared family/child loader:
@@ -167,7 +171,7 @@ project. Read this before making changes.
 - Add Points has only an optional note; there are no categories in v1.
 - Badges are hidden except for the lightweight First Points unlock message and Activity History
   badge display.
-- Rewards and Journey currently appear as disabled coming-soon actions on the child home screen.
+- Rewards and Journey are live actions on the child home screen.
 - Admin Settings are intentionally local-first for now.
 - Avoid medical language.
 - No photos, streaks, leaderboards, notifications, or allergy-management features in the current
@@ -247,13 +251,36 @@ project. Read this before making changes.
 ### Activity History
 
 - Activity History shows transactions newest first for the selected child and family.
-- Rows display date, activity name, points earned, and badge unlocked.
+- Rows display date, activity name, point change, and badge unlocked.
 - Activity names come from `transactions.note` when present, otherwise a label derived from
   `transactions.type`.
 - Activity History reads `child_badges.earned_at` and shows First Points on the positive transaction
   immediately before the badge was earned. It falls back to the first positive transaction that
   reaches the current threshold when needed.
 - There is no explicit per-transaction badge reference yet.
+
+### Rewards
+
+- Rewards lives at `/children/$childId/rewards`.
+- Parents can add active family reward templates using `reward_templates`.
+- Redeeming a reward inserts a `transactions` row with:
+  - `type = "reward_redeemed"`
+  - negative `points_change`
+  - `reward_template_id`
+  - note `"Redeemed: <reward name>"`
+- The existing database trigger applies the balance change and increments
+  `children.total_rewards_redeemed`.
+- The page reloads the selected child after redemption so balances and totals stay in sync with the
+  database trigger.
+
+### Journey
+
+- Journey lives at `/children/$childId/journey`.
+- It reads the selected child counters, active rewards, transactions, and child badges.
+- It shows current balance, total earned, rewards redeemed, next reward progress, milestone
+  progress, and recent moments.
+- It does not add new schema; milestones are inferred from existing counters, transactions, and
+  badges.
 
 ### Admin Settings
 
@@ -637,6 +664,7 @@ Source: Supabase MCP reads on 2026-06-16 for project `tbosqyedogluzcpzodwe`.
 3. If Clear activity history fails, add a narrow `transactions` DELETE policy for family members.
 4. Move Admin Settings from localStorage to a Supabase-backed family settings model.
 5. Add explicit badge activity history data if more badges are added.
-6. Build the Rewards flow using the existing `reward_templates` table.
+6. Consider edit/archive controls for `reward_templates` once reward management grows beyond MVP
+   creation/redemption.
 7. Clean up pre-existing lint formatting errors so `npm run lint` can become a reliable gate.
 8. Remove or hide `dashboardBuildMarker` once deployment confidence is no longer needed.

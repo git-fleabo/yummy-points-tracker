@@ -178,7 +178,7 @@ function ActivityHistoryPage() {
                   <TableRow>
                     <TableHead>Date</TableHead>
                     <TableHead>Activity</TableHead>
-                    <TableHead className="text-right">Points earned</TableHead>
+                    <TableHead className="text-right">Points</TableHead>
                     <TableHead>Badge unlocked</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -292,5 +292,6 @@ function formatDate(value: string) {
 function getActivityName(transaction: Transaction) {
   if (transaction.note?.trim()) return transaction.note;
   if (transaction.type === "points_added") return "Points added";
+  if (transaction.type === "reward_redeemed") return "Reward redeemed";
   return transaction.type.replaceAll("_", " ");
 }
