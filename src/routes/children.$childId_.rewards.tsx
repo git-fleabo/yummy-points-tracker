@@ -29,6 +29,17 @@ type RewardTemplate = {
   is_active: boolean;
 };
 
+type RewardStatus = {
+  redeemed: boolean;
+  firstRewardUnlocked: boolean;
+};
+
+type RewardBadge = {
+  id: string;
+  name: string;
+  icon: string | null;
+};
+
 function RewardsPage() {
   const { childId } = Route.useParams();
   const navigate = useNavigate();
@@ -41,6 +52,10 @@ function RewardsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [redeeming, setRedeeming] = useState(false);
+  const [rewardStatus, setRewardStatus] = useState<RewardStatus>({
+    redeemed: false,
+    firstRewardUnlocked: false,
+  });
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -62,6 +77,7 @@ function RewardsPage() {
       const loadedRewards = await loadFamilyRewards(loadedFamily.id);
 
       if (isMounted) {
+        setRewardStatus(readRewardStatus(childId));
         setChild(loadedChild);
         setFamily(loadedFamily);
         setRewards(loadedRewards);
@@ -91,6 +107,7 @@ function RewardsPage() {
 
     setSaving(true);
     setError(null);
+    setRewardStatus({ redeemed: false, firstRewardUnlocked: false });
 
     const { data: createdReward, error: createError } = await supabase
       .from("reward_templates")
@@ -120,6 +137,7 @@ function RewardsPage() {
 
     setRedeeming(true);
     setError(null);
+    setRewardStatus({ redeemed: false, firstRewardUnlocked: false });
 
     try {
       const { error: transactionError } = await supabase.from("transactions").insert({
@@ -128,10 +146,12 @@ function RewardsPage() {
         type: "reward_redeemed",
         points_change: -selectedReward.point_cost,
         reward_template_id: selectedReward.id,
-        note: `Redeemed: ${selectedReward.name}`,
+        note: selectedReward.name,
       });
 
       if (transactionError) throw transactionError;
+
+      const firstRewardUnlocked = await awardFirstRewardBadgeIfNeeded(child.id);
 
       const { data: updatedChild, error: childError } = await supabase
         .from("children")
@@ -143,7 +163,11 @@ function RewardsPage() {
 
       if (childError) throw childError;
 
+      const refreshedRewards = await loadFamilyRewards(family.id);
+      saveRewardStatus(child.id, { redeemed: true, firstRewardUnlocked });
       setChild(updatedChild);
+      setRewards(refreshedRewards);
+      setRewardStatus({ redeemed: true, firstRewardUnlocked });
       setSelectedReward(null);
     } catch (err) {
       setError(getErrorMessage(err));
@@ -214,6 +238,19 @@ function RewardsPage() {
               </div>
             )}
 
+            {rewardStatus.redeemed && (
+              <div className="space-y-3">
+                <div className="rounded-lg border border-success/40 bg-success/10 px-4 py-3 text-sm font-semibold text-success">
+                  🎁 Reward redeemed!
+                </div>
+                {rewardStatus.firstRewardUnlocked && (
+                  <div className="rounded-lg border border-sunshine/60 bg-sunshine/20 px-4 py-3 text-sm font-semibold text-sunshine-foreground">
+                    🎁 First Reward unlocked!
+                  </div>
+                )}
+              </div>
+            )}
+
             <form className="grid gap-3 sm:grid-cols-[1fr_9rem_auto]" onSubmit={handleCreateReward}>
               <div className="space-y-2">
                 <Label htmlFor="reward-name">Reward</Label>
@@ -252,16 +289,15 @@ function RewardsPage() {
                 <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
                   <Gift aria-hidden="true" className="size-6" />
                 </div>
-                <p className="mt-4 font-semibold text-foreground">No rewards yet</p>
-                <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
-                  Add a reward above, then it will appear here and on every child's rewards page.
+                <p className="mt-4 font-semibold text-foreground">
+                  No rewards yet. Create one above.
                 </p>
               </div>
             ) : (
               <div className="space-y-6">
                 <RewardSection
                   title="Available now"
-                  emptyText={`${child.name} is still saving for these rewards.`}
+                  emptyText="No rewards available yet."
                   rewards={rewards.filter((reward) => child.current_balance >= reward.point_cost)}
                   child={child}
                   family={family}
@@ -269,7 +305,7 @@ function RewardsPage() {
                 />
                 <RewardSection
                   title="Saving towards"
-                  emptyText="Everything is ready to redeem."
+                  emptyText="No saving goals right now."
                   rewards={rewards.filter((reward) => child.current_balance < reward.point_cost)}
                   child={child}
                   family={family}
@@ -387,6 +423,84 @@ async function loadFamilyRewards(familyId: string) {
 
   if (rewardsError) throw rewardsError;
   return ((loadedRewards ?? []) as RewardTemplate[]).sort(sortRewards);
+}
+
+async function awardFirstRewardBadgeIfNeeded(childId: string) {
+  const { data: firstRewardBadge, error: badgeError } = await supabase
+    .from("badges")
+    .select("id, name, icon")
+    .eq("name", "First Reward")
+    .maybeSingle<RewardBadge>();
+
+  if (badgeError) {
+    console.error("Could not load First Reward badge.", badgeError);
+    return false;
+  }
+
+  if (!firstRewardBadge) {
+    console.error('Could not find "First Reward" badge.');
+    return false;
+  }
+
+  const { data: existingChildBadge, error: existingBadgeError } = await supabase
+    .from("child_badges")
+    .select("id")
+    .eq("child_id", childId)
+    .eq("badge_id", firstRewardBadge.id)
+    .maybeSingle<{ id: string }>();
+
+  if (existingBadgeError) {
+    console.error("Could not check First Reward badge.", existingBadgeError);
+    return false;
+  }
+
+  if (existingChildBadge) return false;
+
+  const { error: childBadgeError } = await supabase.from("child_badges").insert({
+    child_id: childId,
+    badge_id: firstRewardBadge.id,
+  });
+
+  if (childBadgeError) {
+    console.error("Could not unlock First Reward badge.", childBadgeError);
+    return false;
+  }
+
+  if (typeof window !== "undefined") {
+    window.sessionStorage.setItem(
+      `badge-unlocked-${childId}`,
+      JSON.stringify({ name: firstRewardBadge.name, icon: firstRewardBadge.icon }),
+    );
+  }
+
+  return true;
+}
+
+function saveRewardStatus(childId: string, status: RewardStatus) {
+  if (typeof window === "undefined") return;
+
+  window.sessionStorage.setItem(`reward-redeemed-${childId}`, JSON.stringify(status));
+}
+
+function readRewardStatus(childId: string): RewardStatus {
+  if (typeof window === "undefined") {
+    return { redeemed: false, firstRewardUnlocked: false };
+  }
+
+  const storedStatus = window.sessionStorage.getItem(`reward-redeemed-${childId}`);
+  window.sessionStorage.removeItem(`reward-redeemed-${childId}`);
+
+  if (!storedStatus) return { redeemed: false, firstRewardUnlocked: false };
+
+  try {
+    const parsedStatus = JSON.parse(storedStatus) as Partial<RewardStatus>;
+    return {
+      redeemed: Boolean(parsedStatus.redeemed),
+      firstRewardUnlocked: Boolean(parsedStatus.firstRewardUnlocked),
+    };
+  } catch {
+    return { redeemed: true, firstRewardUnlocked: false };
+  }
 }
 
 function sortRewards(a: RewardTemplate, b: RewardTemplate) {

@@ -14,7 +14,19 @@ project. Read this before making changes.
   points, reward creation/redemption, Journey, First Points badge unlock, Activity History, Admin
   Settings, child removal from the dashboard, a blue mobile-first visual palette, and Admin
   Settings test tools.
-- Sprint 4 Core Experience Polish is in progress/completed locally:
+- Sprint 4 Rewards is in progress/completed locally:
+  - `/children/$childId/rewards` completes the first full points loop: earn points, save points,
+    redeem a reward.
+  - Rewards loads active `reward_templates` for the selected child's family.
+  - Creating a reward inserts `family_id`, `name`, `point_cost`, and `is_active = true`.
+  - Redeeming a reward creates a negative `reward_redeemed` transaction with
+    `reward_template_id` and `note = reward name`.
+  - After redemption, the page refreshes the child balance and rewards list, then shows
+    `🎁 Reward redeemed!`.
+  - First successful reward redemption checks for the `First Reward` badge, inserts a
+    `child_badges` row if missing, and shows `🎁 First Reward unlocked!` once using
+    `sessionStorage`.
+- Sprint 4 Core Experience Polish was also completed locally:
   - Child Home now acts as the selected child's main hub with a balance panel and clear action cards
     for Add Points, Rewards, and Journey.
   - Rewards separates "Available now" from "Saving towards" and shows how many more points are
@@ -285,11 +297,29 @@ project. Read this before making changes.
 
 - Rewards lives at `/children/$childId/rewards`.
 - Parents can add active family reward templates using `reward_templates`.
-- Sprint 4 Rewards layout:
+- Sprint 4 Rewards route behavior:
+  - Loads the current Supabase session and redirects signed-out users to `/login`.
+  - Loads the selected child through `loadChildForUser()`, which confirms the child belongs to a
+    family the signed-in user belongs to.
+  - Loads active `reward_templates` for that family.
   - Keeps the lightweight add-reward form.
   - Separates active rewards into "Available now" and "Saving towards".
   - Locked rewards show how many more points the child needs.
-  - Empty state explains that adding a reward makes it available across children.
+  - Empty states use:
+    - `"No rewards yet. Create one above."`
+    - `"No rewards available yet."`
+    - `"No saving goals right now."`
+  - Redeeming a reward creates a `transactions` row:
+    - `type = "reward_redeemed"`
+    - `points_change = -reward.point_cost`
+    - `reward_template_id = selected reward id`
+    - `note = reward name`
+  - The existing database trigger applies the negative point change and increments
+    `children.total_rewards_redeemed`.
+  - After redemption, Rewards reloads the child and active reward list and shows a success message.
+  - First successful redemption checks `badges.name = "First Reward"`, avoids duplicate
+    `child_badges` rows, inserts the badge when needed, and shows a one-time unlock message using
+    `sessionStorage`.
 - Admin Settings also has a Rewards tab for family-level reward management:
   - Loads active `reward_templates` for the signed-in user's first family.
   - Creates active rewards with name and point cost.
@@ -299,7 +329,7 @@ project. Read this before making changes.
   - `type = "reward_redeemed"`
   - negative `points_change`
   - `reward_template_id`
-  - note `"Redeemed: <reward name>"`
+  - note `<reward name>`
 - The existing database trigger applies the balance change and increments
   `children.total_rewards_redeemed`.
 - The page reloads the selected child after redemption so balances and totals stay in sync with the
