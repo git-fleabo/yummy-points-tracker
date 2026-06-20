@@ -1,10 +1,9 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, Award, Gift, Map, Sparkles, Trophy } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { ArrowLeft, Gift, Sparkles } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { getErrorMessage, loadChildForUser, type Child, type Family } from "@/lib/family-data";
 
@@ -13,39 +12,32 @@ export const Route = createFileRoute("/children/$childId_/journey")({
   component: JourneyPage,
 });
 
+type RewardRelation = { name: string | null } | { name: string | null }[] | null;
+
 type Transaction = {
   id: string;
   type: string;
   points_change: number;
   note: string | null;
   created_at: string;
+  reward_template_id: string | null;
+  reward_templates: RewardRelation;
 };
 
-type ChildBadge = {
-  earned_at: string;
-  badges:
-    | {
-        name: string;
-        description: string;
-        icon: string | null;
-      }
-    | {
-        name: string;
-        description: string;
-        icon: string | null;
-      }[]
-    | null;
-};
-
-type RewardTemplate = {
+type TimelineItem = {
   id: string;
-  name: string;
-  point_cost: number;
+  title: string;
+  detail: string;
+  note: string | null;
+  date: string;
+  variant: "default" | "secondary";
+  icon: typeof Sparkles | typeof Gift;
 };
 
-const dateFormatter = new Intl.DateTimeFormat(undefined, {
-  month: "short",
+const longDateFormatter = new Intl.DateTimeFormat(undefined, {
   day: "numeric",
+  month: "long",
+  year: "numeric",
 });
 
 function JourneyPage() {
@@ -54,8 +46,6 @@ function JourneyPage() {
   const [child, setChild] = useState<Child | null>(null);
   const [family, setFamily] = useState<Family | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [badges, setBadges] = useState<EarnedBadge[]>([]);
-  const [rewards, setRewards] = useState<RewardTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -75,18 +65,12 @@ function JourneyPage() {
       }
 
       const { child: loadedChild, family: loadedFamily } = await loadChildForUser(childId, user.id);
-      const [loadedTransactions, loadedBadges, loadedRewards] = await Promise.all([
-        loadTransactions(loadedChild.id, loadedFamily.id),
-        loadBadges(loadedChild.id),
-        loadRewards(loadedFamily.id, loadedChild.id),
-      ]);
+      const loadedTransactions = await loadTransactions(loadedChild.id, loadedFamily.id);
 
       if (isMounted) {
         setChild(loadedChild);
         setFamily(loadedFamily);
         setTransactions(loadedTransactions);
-        setBadges(loadedBadges);
-        setRewards(loadedRewards);
         setLoading(false);
       }
     }
@@ -103,20 +87,15 @@ function JourneyPage() {
     };
   }, [childId, navigate]);
 
-  const journey = useMemo(() => {
-    if (!child || !family) return null;
-    return buildJourney(child, family, transactions, badges, rewards);
-  }, [child, family, transactions, badges, rewards]);
-
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background px-4">
-        <p className="text-sm text-muted-foreground">Loading journey…</p>
+        <p className="text-sm text-muted-foreground">Loading journey...</p>
       </div>
     );
   }
 
-  if (!child || !family || !journey) {
+  if (!child || !family) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background px-4">
         <Card className="w-full max-w-md border-border bg-card shadow-sm">
@@ -139,9 +118,11 @@ function JourneyPage() {
     );
   }
 
+  const timeline = transactions.map((transaction) => buildTimelineItem(transaction, child, family));
+
   return (
     <div className="min-h-screen bg-background px-4 py-8 text-foreground sm:px-6 lg:px-8">
-      <main className="mx-auto flex w-full max-w-4xl flex-col gap-6">
+      <main className="mx-auto flex w-full max-w-3xl flex-col gap-6">
         <Button asChild variant="outline" className="w-fit">
           <Link to="/children/$childId" params={{ childId }}>
             <ArrowLeft aria-hidden="true" />
@@ -151,12 +132,9 @@ function JourneyPage() {
 
         <Card className="border-border bg-card shadow-sm">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-2xl text-foreground">
-              <Map aria-hidden="true" className="size-6 text-primary" />
-              Journey
-            </CardTitle>
+            <CardTitle className="text-2xl text-foreground">{child.name}'s Yummy Journey</CardTitle>
             <p className="text-sm text-muted-foreground">
-              A friendly timeline of what {child.name} has earned, redeemed, and unlocked.
+              {child.current_balance} {family.point_name} ready to use.
             </p>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -166,108 +144,53 @@ function JourneyPage() {
               </div>
             )}
 
-            <div className="grid gap-3 sm:grid-cols-3">
-              <StatCard
-                icon={<Sparkles aria-hidden="true" />}
-                label="Current balance"
-                value={`${child.current_balance} ${family.point_name}`}
-              />
-              <StatCard
-                icon={<Trophy aria-hidden="true" />}
-                label="Total earned"
-                value={`${child.total_points_earned} ${family.point_name}`}
-              />
-              <StatCard
-                icon={<Gift aria-hidden="true" />}
-                label="Rewards redeemed"
-                value={String(child.total_rewards_redeemed)}
-              />
+            <div className="rounded-xl border border-secondary/40 bg-secondary/10 p-4">
+              <p className="text-sm font-medium text-muted-foreground">Current balance</p>
+              <p className="mt-1 text-4xl font-semibold text-primary">{child.current_balance}</p>
+              <p className="text-sm text-muted-foreground">{family.point_name}</p>
             </div>
 
-            {journey.nextReward ? (
-              <div className="rounded-lg border border-secondary/40 bg-secondary/15 p-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-secondary-foreground">Next reward</p>
-                    <h2 className="text-xl font-semibold text-foreground">
-                      {journey.nextReward.name}
-                    </h2>
-                    <p className="text-sm text-muted-foreground">
-                      {journey.nextReward.point_cost} {family.point_name}
-                    </p>
-                  </div>
-                  <Badge variant={journey.pointsUntilNextReward === 0 ? "default" : "secondary"}>
-                    {journey.pointsUntilNextReward === 0
-                      ? "Ready to redeem"
-                      : `${journey.pointsUntilNextReward} to go`}
-                  </Badge>
+            {timeline.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-secondary/50 bg-secondary/15 px-5 py-10 text-center">
+                <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <Sparkles aria-hidden="true" className="size-6" />
                 </div>
-                <Progress value={journey.nextRewardProgress} className="mt-4" />
+                <p className="mt-4 font-semibold text-foreground">No journey yet.</p>
+                <p className="mt-1 text-sm text-muted-foreground">Add some points to begin.</p>
               </div>
             ) : (
-              <div className="rounded-lg border border-dashed border-secondary/50 bg-secondary/15 px-4 py-6 text-center text-sm font-medium text-secondary-foreground">
-                Add rewards to show the next goal here.
-              </div>
-            )}
-
-            <section className="space-y-3">
-              <h2 className="text-lg font-semibold text-foreground">Milestones</h2>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {journey.milestones.map((milestone) => (
-                  <div
-                    key={milestone.name}
-                    className="rounded-lg border border-border bg-background/60 p-4"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-start gap-3">
-                        <div className="flex size-10 items-center justify-center rounded-full bg-sunshine text-sunshine-foreground">
-                          <milestone.icon aria-hidden="true" className="size-5" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-foreground">{milestone.name}</h3>
-                          <p className="text-sm text-muted-foreground">{milestone.description}</p>
-                        </div>
-                      </div>
-                      <Badge variant={milestone.complete ? "default" : "secondary"}>
-                        {milestone.complete ? "Done" : "Next"}
-                      </Badge>
-                    </div>
-                    <Progress value={milestone.progress} className="mt-4" />
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            <section className="space-y-3">
-              <h2 className="text-lg font-semibold text-foreground">Journey timeline</h2>
-              {journey.moments.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-secondary/50 bg-secondary/15 px-5 py-10 text-center">
-                  <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-                    <Sparkles aria-hidden="true" className="size-6" />
-                  </div>
-                  <p className="mt-4 font-semibold text-foreground">No journey moments yet</p>
-                  <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
-                    Add points or redeem a reward, and {child.name}'s story will appear here.
-                  </p>
-                </div>
-              ) : (
+              <section className="space-y-4">
+                <h2 className="text-lg font-semibold text-foreground">Timeline</h2>
                 <div className="space-y-3">
-                  {journey.moments.map((moment) => (
+                  {timeline.map((item) => (
                     <div
-                      key={moment.id}
-                      className="grid grid-cols-[auto_1fr_auto] gap-3 rounded-lg border border-border bg-background/60 px-4 py-3"
+                      key={item.id}
+                      className="grid grid-cols-[auto_1fr] gap-3 rounded-lg border border-border bg-background/60 p-4"
                     >
-                      <div className="mt-1 size-3 rounded-full bg-primary" />
-                      <div className="min-w-0">
-                        <p className="font-medium text-foreground">{moment.title}</p>
-                        <p className="text-sm text-muted-foreground">{formatDate(moment.date)}</p>
+                      <div className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+                        <item.icon aria-hidden="true" className="size-5" />
                       </div>
-                      <Badge variant={moment.variant}>{moment.detail}</Badge>
+                      <div className="min-w-0">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                          <div>
+                            <p className="font-semibold text-foreground">{item.title}</p>
+                            {item.note && (
+                              <p className="mt-1 text-sm text-muted-foreground">{item.note}</p>
+                            )}
+                          </div>
+                          <Badge variant={item.variant} className="w-fit">
+                            {item.detail}
+                          </Badge>
+                        </div>
+                        <p className="mt-3 text-sm text-muted-foreground">
+                          {formatJourneyDate(item.date)}
+                        </p>
+                      </div>
                     </div>
                   ))}
                 </div>
-              )}
-            </section>
+              </section>
+            )}
           </CardContent>
         </Card>
       </main>
@@ -275,111 +198,10 @@ function JourneyPage() {
   );
 }
 
-function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
-  return (
-    <div className="rounded-lg border border-border bg-background/60 p-4">
-      <div className="mb-3 flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-        {icon}
-      </div>
-      <p className="text-sm text-muted-foreground">{label}</p>
-      <p className="mt-1 text-xl font-semibold text-foreground">{value}</p>
-    </div>
-  );
-}
-
-type EarnedBadge = {
-  name: string;
-  description: string;
-  icon: string | null;
-  earnedAt: string;
-};
-
-function buildJourney(
-  child: Child,
-  family: Family,
-  transactions: Transaction[],
-  badges: EarnedBadge[],
-  rewards: RewardTemplate[],
-) {
-  const nextReward =
-    rewards.find((reward) => reward.point_cost >= child.current_balance) ?? rewards.at(-1) ?? null;
-  const pointsUntilNextReward = nextReward
-    ? Math.max(nextReward.point_cost - child.current_balance, 0)
-    : 0;
-  const nextRewardProgress = nextReward
-    ? percentage(child.current_balance, nextReward.point_cost)
-    : 0;
-
-  return {
-    nextReward,
-    pointsUntilNextReward,
-    nextRewardProgress,
-    milestones: [
-      {
-        name: "First points",
-        description: "Earn the first point balance.",
-        complete: child.total_points_earned > 0,
-        progress: child.total_points_earned > 0 ? 100 : 0,
-        icon: Sparkles,
-      },
-      {
-        name: "First badge",
-        description: "Unlock a hidden badge.",
-        complete: badges.length > 0,
-        progress: badges.length > 0 ? 100 : 0,
-        icon: Award,
-      },
-      {
-        name: "Ten earned",
-        description: "Reach 10 total points earned.",
-        complete: child.total_points_earned >= 10,
-        progress: percentage(child.total_points_earned, 10),
-        icon: Trophy,
-      },
-      {
-        name: "First reward",
-        description: "Redeem a family reward.",
-        complete: child.total_rewards_redeemed > 0,
-        progress: child.total_rewards_redeemed > 0 ? 100 : 0,
-        icon: Gift,
-      },
-    ],
-    moments: buildMoments(transactions, badges, child, family).slice(0, 8),
-  };
-}
-
-function buildMoments(
-  transactions: Transaction[],
-  badges: EarnedBadge[],
-  child: Child,
-  family: Family,
-) {
-  return [
-    ...transactions.map((transaction) => ({
-      id: transaction.id,
-      title: getTransactionTitle(transaction, child, family),
-      detail:
-        transaction.points_change > 0
-          ? `+${transaction.points_change}`
-          : String(transaction.points_change),
-      date: transaction.created_at,
-      variant:
-        transaction.type === "reward_redeemed" ? ("secondary" as const) : ("default" as const),
-    })),
-    ...badges.map((badge) => ({
-      id: `badge-${badge.name}-${badge.earnedAt}`,
-      title: `${badge.icon ?? "Badge"} ${badge.name}`,
-      detail: "Badge",
-      date: badge.earnedAt,
-      variant: "secondary" as const,
-    })),
-  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-}
-
 async function loadTransactions(childId: string, familyId: string) {
   const { data: loadedTransactions, error: transactionsError } = await supabase
     .from("transactions")
-    .select("id, type, points_change, note, created_at")
+    .select("id, type, points_change, note, created_at, reward_template_id, reward_templates(name)")
     .eq("child_id", childId)
     .eq("family_id", familyId)
     .order("created_at", { ascending: false });
@@ -388,66 +210,75 @@ async function loadTransactions(childId: string, familyId: string) {
   return (loadedTransactions ?? []) as Transaction[];
 }
 
-async function loadBadges(childId: string) {
-  const { data: loadedBadges, error: badgesError } = await supabase
-    .from("child_badges")
-    .select("earned_at, badges(name, description, icon)")
-    .eq("child_id", childId);
+function buildTimelineItem(transaction: Transaction, child: Child, family: Family): TimelineItem {
+  if (transaction.type === "reward_redeemed") {
+    const rewardName = getRewardName(transaction);
+    const title = rewardName
+      ? `${child.name} redeemed ${rewardName}`
+      : `${child.name} redeemed a reward`;
 
-  if (badgesError) throw badgesError;
-  return extractBadges((loadedBadges ?? []) as ChildBadge[]);
-}
-
-async function loadRewards(familyId: string, childId: string) {
-  const { data: loadedRewards, error: rewardsError } = await supabase
-    .from("reward_templates")
-    .select("id, name, point_cost")
-    .eq("family_id", familyId)
-    .eq("is_active", true)
-    .or(`child_id.is.null,child_id.eq.${childId}`)
-    .order("point_cost", { ascending: true });
-
-  if (rewardsError) throw rewardsError;
-  return (loadedRewards ?? []) as RewardTemplate[];
-}
-
-function extractBadges(childBadges: ChildBadge[]) {
-  return childBadges
-    .flatMap((childBadge) =>
-      [childBadge.badges ?? []].flat().map((badge) => ({
-        name: badge.name,
-        description: badge.description,
-        icon: badge.icon,
-        earnedAt: childBadge.earned_at,
-      })),
-    )
-    .filter((badge) => Boolean(badge.name));
-}
-
-function getTransactionTitle(transaction: Transaction, child: Child, family: Family) {
-  const note = transaction.note?.trim() ?? "";
+    return {
+      id: transaction.id,
+      title,
+      detail: `${Math.abs(transaction.points_change)} ${family.point_name} used`,
+      note: null,
+      date: transaction.created_at,
+      variant: "secondary",
+      icon: Gift,
+    };
+  }
 
   if (transaction.type === "points_added") {
-    const earnedText = `${child.name} earned ${transaction.points_change} ${family.point_name}`;
-    return note ? `${earnedText} for ${note}` : earnedText;
+    return {
+      id: transaction.id,
+      title: `${child.name} earned ${transaction.points_change} ${family.point_name}`,
+      detail: `+${transaction.points_change}`,
+      note: transaction.note?.trim() || null,
+      date: transaction.created_at,
+      variant: "default",
+      icon: Sparkles,
+    };
   }
 
-  if (transaction.type === "reward_redeemed") {
-    const rewardName = note.replace(/^redeemed:\s*/i, "").trim();
-    return rewardName ? `${child.name} redeemed ${rewardName}` : `${child.name} redeemed a reward`;
-  }
-
-  if (note) return note;
-  return transaction.type.replaceAll("_", " ");
+  return {
+    id: transaction.id,
+    title: transaction.note?.trim() || `${child.name}'s balance changed`,
+    detail: formatPointChange(transaction.points_change, family.point_name),
+    note: null,
+    date: transaction.created_at,
+    variant: transaction.points_change >= 0 ? "default" : "secondary",
+    icon: Sparkles,
+  };
 }
 
-function percentage(value: number, target: number) {
-  if (target <= 0) return 0;
-  return Math.min(Math.round((value / target) * 100), 100);
+function getRewardName(transaction: Transaction) {
+  const joinedReward = [transaction.reward_templates ?? []].flat()[0]?.name?.trim();
+  if (joinedReward) return joinedReward;
+
+  const note = transaction.note?.replace(/^redeemed:\s*/i, "").trim();
+  return note || null;
 }
 
-function formatDate(value: string) {
+function formatPointChange(points: number, pointName: string) {
+  const absolutePoints = Math.abs(points);
+  if (points < 0) return `${absolutePoints} ${pointName} used`;
+  return `+${absolutePoints}`;
+}
+
+function formatJourneyDate(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return dateFormatter.format(date);
+
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+
+  if (toDateKey(date) === toDateKey(today)) return "Today";
+  if (toDateKey(date) === toDateKey(yesterday)) return "Yesterday";
+
+  return longDateFormatter.format(date);
+}
+
+function toDateKey(date: Date) {
+  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
 }

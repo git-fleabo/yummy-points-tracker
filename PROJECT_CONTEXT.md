@@ -14,6 +14,16 @@ project. Read this before making changes.
   points, reward creation/redemption, Journey, First Points badge unlock, Activity History, Admin
   Settings, child removal from the dashboard, a blue mobile-first visual palette, and Admin
   Settings test tools.
+- Sprint 5 Journey is in progress/completed locally:
+  - `/children/$childId/journey` is a friendly Yummy Journey timeline for the selected child.
+  - Journey uses `transactions` as the source of truth and does not change points, rewards, badges,
+    or schema.
+  - It loads transaction `id`, `type`, `points_change`, `note`, `created_at`,
+    `reward_template_id`, and joined reward template name when available.
+  - Points read like `<child> earned <amount> <point name>`, with the saved note underneath.
+  - Redemptions read like `<child> redeemed <reward name>` and show
+    `<amount> <point name> used`.
+  - Dates are shown as `Today`, `Yesterday`, or a simple long date.
 - Sprint 5A Reward Scope is in progress/completed locally:
   - Rewards can be family-wide or scoped to one child.
   - `reward_templates.child_id = null` means the reward is available to the whole family.
@@ -372,16 +382,23 @@ project. Read this before making changes.
 ### Journey
 
 - Journey lives at `/children/$childId/journey`.
-- It reads the selected child counters, active rewards, transactions, and child badges.
-- It shows current balance, total earned, rewards redeemed, next reward progress, milestone
-  progress, and a friendly timeline.
+- It loads the current session, redirects signed-out users to `/login`, and loads the selected child
+  through `loadChildForUser()` so family access is checked consistently.
+- It uses the child's `transactions` as the source of truth, ordered newest first.
+- Transaction query reads `id`, `type`, `points_change`, `note`, `created_at`,
+  `reward_template_id`, and joined `reward_templates(name)` when available.
+- It shows a Back to child home button, page title `<child>'s Yummy Journey`, current balance, and a
+  clean vertical timeline.
 - Timeline labels avoid database-y language:
   - Points added reads like `<child> earned <amount> <point name>`.
-  - Saved notes are included as the reason when present.
-  - Reward redemptions read like `<child> redeemed <reward name>`.
-- Empty state invites the parent to add points or redeem a reward to begin the journey.
-- It does not add new schema; milestones are inferred from existing counters, transactions, and
-  badges.
+  - Saved notes appear underneath earned points.
+  - Reward redemptions read like `<child> redeemed <reward name>` when the joined reward name or note
+    is available.
+  - If no reward name or note is available, redemptions read like `<child> redeemed a reward`.
+  - Redemption cost reads like `<amount> <point name> used`.
+- Dates display as `Today`, `Yesterday`, or a simple readable date such as `20 June 2026`.
+- Empty state says `"No journey yet. Add some points to begin."`
+- It does not add schema and does not change points, rewards, or badge logic.
 
 ### Admin Settings
 
