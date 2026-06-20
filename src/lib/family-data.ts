@@ -11,6 +11,7 @@ export type Child = {
   family_id: string;
   name: string;
   avatar_icon: string | null;
+  avatar_colour: string | null;
   current_balance: number;
   total_points_earned: number;
   total_rewards_redeemed: number;
@@ -34,7 +35,7 @@ export async function loadChildForUser(childId: string, userId: string): Promise
   const { data: child, error: childError } = await supabase
     .from("children")
     .select(
-      "id, family_id, name, avatar_icon, current_balance, total_points_earned, total_rewards_redeemed",
+      "id, family_id, name, avatar_icon, avatar_colour, current_balance, total_points_earned, total_rewards_redeemed",
     )
     .eq("id", childId)
     .maybeSingle<Child>();

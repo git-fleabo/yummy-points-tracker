@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { getAvatarColourClass } from "@/lib/avatar-colours";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({ meta: [{ title: "Family Dashboard — Yummy Points" }] }),
@@ -37,6 +38,7 @@ type Child = {
   id: string;
   name: string;
   avatar_icon: string | null;
+  avatar_colour: string | null;
   current_balance: number;
   total_rewards_redeemed: number;
 };
@@ -154,7 +156,7 @@ function DashboardPage() {
 
     const { data: loadedChildren, error: childrenError } = await supabase
       .from("children")
-      .select("id, name, avatar_icon, current_balance, total_rewards_redeemed")
+      .select("id, name, avatar_icon, avatar_colour, current_balance, total_rewards_redeemed")
       .eq("family_id", loadedFamily.id)
       .order("created_at", { ascending: true });
 
@@ -182,7 +184,7 @@ function DashboardPage() {
         avatar_icon: "⭐",
         avatar_colour: "soft-yellow",
       })
-      .select("id, name, avatar_icon, current_balance, total_rewards_redeemed")
+      .select("id, name, avatar_icon, avatar_colour, current_balance, total_rewards_redeemed")
       .single<Child>();
 
     setAddingChild(false);
@@ -358,7 +360,9 @@ function DashboardPage() {
                 <CardContent className="space-y-4 p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-3">
-                      <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-sunshine text-2xl text-sunshine-foreground shadow-sm">
+                      <div
+                        className={`flex size-12 shrink-0 items-center justify-center rounded-2xl text-2xl shadow-sm ${getAvatarColourClass(child.avatar_colour)}`}
+                      >
                         {child.avatar_icon ?? "⭐"}
                       </div>
                       <div className="min-w-0">

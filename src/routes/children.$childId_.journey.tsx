@@ -104,9 +104,9 @@ function JourneyPage() {
   }, [childId, navigate]);
 
   const journey = useMemo(() => {
-    if (!child) return null;
-    return buildJourney(child, transactions, badges, rewards);
-  }, [child, transactions, badges, rewards]);
+    if (!child || !family) return null;
+    return buildJourney(child, family, transactions, badges, rewards);
+  }, [child, family, transactions, badges, rewards]);
 
   if (loading) {
     return (
@@ -156,7 +156,7 @@ function JourneyPage() {
               Journey
             </CardTitle>
             <p className="text-sm text-muted-foreground">
-              A simple view of what {child.name} has earned, spent, and unlocked.
+              A friendly timeline of what {child.name} has earned, redeemed, and unlocked.
             </p>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -239,19 +239,26 @@ function JourneyPage() {
             </section>
 
             <section className="space-y-3">
-              <h2 className="text-lg font-semibold text-foreground">Recent moments</h2>
+              <h2 className="text-lg font-semibold text-foreground">Journey timeline</h2>
               {journey.moments.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-secondary/50 bg-secondary/15 px-4 py-8 text-center text-sm font-medium text-secondary-foreground">
-                  Add points or redeem a reward to begin the journey.
+                <div className="rounded-lg border border-dashed border-secondary/50 bg-secondary/15 px-5 py-10 text-center">
+                  <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                    <Sparkles aria-hidden="true" className="size-6" />
+                  </div>
+                  <p className="mt-4 font-semibold text-foreground">No journey moments yet</p>
+                  <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
+                    Add points or redeem a reward, and {child.name}'s story will appear here.
+                  </p>
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {journey.moments.map((moment) => (
                     <div
                       key={moment.id}
-                      className="flex items-center justify-between gap-3 rounded-lg border border-border bg-background/60 px-4 py-3"
+                      className="grid grid-cols-[auto_1fr_auto] gap-3 rounded-lg border border-border bg-background/60 px-4 py-3"
                     >
-                      <div>
+                      <div className="mt-1 size-3 rounded-full bg-primary" />
+                      <div className="min-w-0">
                         <p className="font-medium text-foreground">{moment.title}</p>
                         <p className="text-sm text-muted-foreground">{formatDate(moment.date)}</p>
                       </div>
@@ -289,6 +296,7 @@ type EarnedBadge = {
 
 function buildJourney(
   child: Child,
+  family: Family,
   transactions: Transaction[],
   badges: EarnedBadge[],
   rewards: RewardTemplate[],
@@ -336,15 +344,20 @@ function buildJourney(
         icon: Gift,
       },
     ],
-    moments: buildMoments(transactions, badges).slice(0, 8),
+    moments: buildMoments(transactions, badges, child, family).slice(0, 8),
   };
 }
 
-function buildMoments(transactions: Transaction[], badges: EarnedBadge[]) {
+function buildMoments(
+  transactions: Transaction[],
+  badges: EarnedBadge[],
+  child: Child,
+  family: Family,
+) {
   return [
     ...transactions.map((transaction) => ({
       id: transaction.id,
-      title: getTransactionTitle(transaction),
+      title: getTransactionTitle(transaction, child, family),
       detail:
         transaction.points_change > 0
           ? `+${transaction.points_change}`
@@ -410,10 +423,20 @@ function extractBadges(childBadges: ChildBadge[]) {
     .filter((badge) => Boolean(badge.name));
 }
 
-function getTransactionTitle(transaction: Transaction) {
-  if (transaction.note?.trim()) return transaction.note;
-  if (transaction.type === "points_added") return "Points added";
-  if (transaction.type === "reward_redeemed") return "Reward redeemed";
+function getTransactionTitle(transaction: Transaction, child: Child, family: Family) {
+  const note = transaction.note?.trim() ?? "";
+
+  if (transaction.type === "points_added") {
+    const earnedText = `${child.name} earned ${transaction.points_change} ${family.point_name}`;
+    return note ? `${earnedText} for ${note}` : earnedText;
+  }
+
+  if (transaction.type === "reward_redeemed") {
+    const rewardName = note.replace(/^redeemed:\s*/i, "").trim();
+    return rewardName ? `${child.name} redeemed ${rewardName}` : `${child.name} redeemed a reward`;
+  }
+
+  if (note) return note;
   return transaction.type.replaceAll("_", " ");
 }
 

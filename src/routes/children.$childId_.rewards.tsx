@@ -136,7 +136,7 @@ function RewardsPage() {
       const { data: updatedChild, error: childError } = await supabase
         .from("children")
         .select(
-          "id, family_id, name, avatar_icon, current_balance, total_points_earned, total_rewards_redeemed",
+          "id, family_id, name, avatar_icon, avatar_colour, current_balance, total_points_earned, total_rewards_redeemed",
         )
         .eq("id", child.id)
         .single<Child>();
@@ -195,7 +195,10 @@ function RewardsPage() {
 
         <Card className="border-border bg-card shadow-sm">
           <CardHeader>
-            <CardTitle className="text-2xl text-foreground">Rewards</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-2xl text-foreground">
+              <Gift aria-hidden="true" className="size-6 text-primary" />
+              Rewards
+            </CardTitle>
             <p className="text-sm text-muted-foreground">
               {child.name} has{" "}
               <span className="font-semibold text-primary">
@@ -245,43 +248,33 @@ function RewardsPage() {
             </form>
 
             {rewards.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-secondary/50 bg-secondary/15 px-4 py-8 text-center text-sm font-medium text-secondary-foreground">
-                Add the first family reward to start redeeming points.
+              <div className="rounded-lg border border-dashed border-secondary/50 bg-secondary/15 px-5 py-10 text-center">
+                <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <Gift aria-hidden="true" className="size-6" />
+                </div>
+                <p className="mt-4 font-semibold text-foreground">No rewards yet</p>
+                <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
+                  Add a reward above, then it will appear here and on every child's rewards page.
+                </p>
               </div>
             ) : (
-              <div className="grid gap-3 sm:grid-cols-2">
-                {rewards.map((reward) => {
-                  const canAfford = child.current_balance >= reward.point_cost;
-                  return (
-                    <div
-                      key={reward.id}
-                      className="flex flex-col gap-4 rounded-lg border border-border bg-background/60 p-4"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <h2 className="font-semibold text-foreground">{reward.name}</h2>
-                          <p className="text-sm text-muted-foreground">
-                            {reward.point_cost} {family.point_name}
-                          </p>
-                        </div>
-                        <Badge variant={canAfford ? "default" : "secondary"}>
-                          {canAfford
-                            ? "Ready"
-                            : `${reward.point_cost - child.current_balance} short`}
-                        </Badge>
-                      </div>
-                      <Button
-                        type="button"
-                        disabled={!canAfford}
-                        onClick={() => setSelectedReward(reward)}
-                        className="mt-auto"
-                      >
-                        <Gift aria-hidden="true" />
-                        Redeem
-                      </Button>
-                    </div>
-                  );
-                })}
+              <div className="space-y-6">
+                <RewardSection
+                  title="Available now"
+                  emptyText={`${child.name} is still saving for these rewards.`}
+                  rewards={rewards.filter((reward) => child.current_balance >= reward.point_cost)}
+                  child={child}
+                  family={family}
+                  onRedeem={setSelectedReward}
+                />
+                <RewardSection
+                  title="Saving towards"
+                  emptyText="Everything is ready to redeem."
+                  rewards={rewards.filter((reward) => child.current_balance < reward.point_cost)}
+                  child={child}
+                  family={family}
+                  onRedeem={setSelectedReward}
+                />
               </div>
             )}
           </CardContent>
@@ -312,6 +305,74 @@ function RewardsPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+function RewardSection({
+  title,
+  emptyText,
+  rewards,
+  child,
+  family,
+  onRedeem,
+}: {
+  title: string;
+  emptyText: string;
+  rewards: RewardTemplate[];
+  child: Child;
+  family: Family;
+  onRedeem: (reward: RewardTemplate) => void;
+}) {
+  return (
+    <section className="space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-lg font-semibold text-foreground">{title}</h2>
+        <Badge variant="secondary">{rewards.length}</Badge>
+      </div>
+
+      {rewards.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-secondary/50 bg-secondary/10 px-4 py-5 text-sm font-medium text-muted-foreground">
+          {emptyText}
+        </div>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {rewards.map((reward) => {
+            const canAfford = child.current_balance >= reward.point_cost;
+            const pointsNeeded = Math.max(reward.point_cost - child.current_balance, 0);
+
+            return (
+              <div
+                key={reward.id}
+                className="flex flex-col gap-4 rounded-lg border border-border bg-background/60 p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="font-semibold text-foreground">{reward.name}</h3>
+                    <p className="text-sm text-muted-foreground">
+                      {reward.point_cost} {family.point_name}
+                    </p>
+                  </div>
+                  <Badge variant={canAfford ? "default" : "secondary"}>
+                    {canAfford ? "Ready" : `${pointsNeeded} more`}
+                  </Badge>
+                </div>
+
+                {canAfford ? (
+                  <Button type="button" onClick={() => onRedeem(reward)} className="mt-auto">
+                    <Gift aria-hidden="true" />
+                    Redeem
+                  </Button>
+                ) : (
+                  <div className="mt-auto rounded-md bg-secondary/15 px-3 py-2 text-sm font-medium text-secondary-foreground">
+                    {child.name} needs {pointsNeeded} more {family.point_name}.
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
   );
 }
 

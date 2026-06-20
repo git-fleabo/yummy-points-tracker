@@ -14,8 +14,17 @@ project. Read this before making changes.
   points, reward creation/redemption, Journey, First Points badge unlock, Activity History, Admin
   Settings, child removal from the dashboard, a blue mobile-first visual palette, and Admin
   Settings test tools.
-- Current uncommitted settings work completes the Admin Settings child profile and reward
-  management sections:
+- Sprint 4 Core Experience Polish is in progress/completed locally:
+  - Child Home now acts as the selected child's main hub with a balance panel and clear action cards
+    for Add Points, Rewards, and Journey.
+  - Rewards separates "Available now" from "Saving towards" and shows how many more points are
+    needed for locked rewards.
+  - Journey uses friendlier timeline language for earned points, redeemed rewards, and badges.
+  - First Points badge behaviour remains one-time and friendly through the shared badge unlock
+    celebration.
+  - Avatar colours saved in Settings now render on Dashboard and Child Home via a shared
+    `src/lib/avatar-colours.ts` helper.
+- Recent settings work completed the Admin Settings child profile and reward management sections:
   - Settings now has Family, Children, Rewards, Points, and Tools tabs.
   - Child profiles can be edited from Settings: display name, avatar icon, and avatar colour.
   - Reward templates can be created, renamed, repriced, and hidden from Settings.
@@ -100,7 +109,7 @@ project. Read this before making changes.
 ## Workflow
 
 - Make code changes locally in `/Users/noam/Documents/Codex/yummy-points-tracker`.
-- Do not commit automatically unless the user explicitly asks for a commit.
+- Commit completed code changes automatically unless the user explicitly asks not to.
 - The human workflow for publishing is GitHub Desktop:
   - Review changed files in GitHub Desktop.
   - Commit from GitHub Desktop.
@@ -276,6 +285,11 @@ project. Read this before making changes.
 
 - Rewards lives at `/children/$childId/rewards`.
 - Parents can add active family reward templates using `reward_templates`.
+- Sprint 4 Rewards layout:
+  - Keeps the lightweight add-reward form.
+  - Separates active rewards into "Available now" and "Saving towards".
+  - Locked rewards show how many more points the child needs.
+  - Empty state explains that adding a reward makes it available across children.
 - Admin Settings also has a Rewards tab for family-level reward management:
   - Loads active `reward_templates` for the signed-in user's first family.
   - Creates active rewards with name and point cost.
@@ -294,6 +308,9 @@ project. Read this before making changes.
 ### Child Profiles
 
 - Dashboard still owns adding and removing child profiles.
+- Avatar colour classes and options live in `src/lib/avatar-colours.ts`.
+- Dashboard, Child Home, and Settings all use the shared avatar colour helper so saved profile
+  colours render consistently.
 - Admin Settings has a Children tab for profile edits:
   - Loads each child's `name`, `avatar_icon`, `avatar_colour`, balance, earned total, and reward
     redemption total.
@@ -308,7 +325,12 @@ project. Read this before making changes.
 - Journey lives at `/children/$childId/journey`.
 - It reads the selected child counters, active rewards, transactions, and child badges.
 - It shows current balance, total earned, rewards redeemed, next reward progress, milestone
-  progress, and recent moments.
+  progress, and a friendly timeline.
+- Timeline labels avoid database-y language:
+  - Points added reads like `<child> earned <amount> <point name>`.
+  - Saved notes are included as the reason when present.
+  - Reward redemptions read like `<child> redeemed <reward name>`.
+- Empty state invites the parent to add points or redeem a reward to begin the journey.
 - It does not add new schema; milestones are inferred from existing counters, transactions, and
   badges.
 
