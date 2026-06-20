@@ -3,6 +3,9 @@ import {
   ArrowLeft,
   BadgeCheck,
   FlaskConical,
+  Gift,
+  Palette,
+  Pencil,
   RotateCcw,
   Save,
   Settings2,
@@ -53,7 +56,18 @@ type TestFamily = {
 type TestChild = {
   id: string;
   name: string;
+  avatar_icon: string | null;
+  avatar_colour: string | null;
   current_balance: number;
+  total_points_earned: number;
+  total_rewards_redeemed: number;
+};
+
+type RewardTemplate = {
+  id: string;
+  name: string;
+  point_cost: number;
+  is_active: boolean;
 };
 
 type TestActionResult = {
@@ -70,10 +84,15 @@ function SettingsPage() {
   const [pointName, setPointName] = useState("");
   const [signedInEmail, setSignedInEmail] = useState("");
   const [children, setChildren] = useState<TestChild[]>([]);
+  const [rewards, setRewards] = useState<RewardTemplate[]>([]);
+  const [newRewardName, setNewRewardName] = useState("");
+  const [newRewardCost, setNewRewardCost] = useState("");
   const [selectedTestChildId, setSelectedTestChildId] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savingFamily, setSavingFamily] = useState(false);
+  const [savingRewardId, setSavingRewardId] = useState<string | null>(null);
+  const [savingChildId, setSavingChildId] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [testRunning, setTestRunning] = useState<string | null>(null);
   const [testStatus, setTestStatus] = useState<TestActionResult | null>(null);
@@ -102,6 +121,7 @@ function SettingsPage() {
         setFamilyName(testData.family?.name ?? "");
         setPointName(testData.family?.point_name ?? "");
         setChildren(testData.children);
+        setRewards(testData.rewards);
         setSelectedTestChildId((currentChildId) =>
           getAvailableChildId(testData.children, currentChildId),
         );
@@ -214,7 +234,9 @@ function SettingsPage() {
 
     const { data: refreshedChildren, error: childrenError } = await supabase
       .from("children")
-      .select("id, name, current_balance")
+      .select(
+        "id, name, avatar_icon, avatar_colour, current_balance, total_points_earned, total_rewards_redeemed",
+      )
       .eq("family_id", family.id)
       .order("created_at", { ascending: true });
 
@@ -222,6 +244,181 @@ function SettingsPage() {
     const nextChildren = (refreshedChildren ?? []) as TestChild[];
     setChildren(nextChildren);
     setSelectedTestChildId((currentChildId) => getAvailableChildId(nextChildren, currentChildId));
+  }
+
+  async function handleCreateReward(e: React.FormEvent) {
+    e.preventDefault();
+    if (!family) return;
+
+    const trimmedName = newRewardName.trim();
+    const cost = Number(newRewardCost);
+    if (!trimmedName || !Number.isInteger(cost) || cost <= 0) return;
+
+    setSavingRewardId("new");
+    setSaved(false);
+    setError(null);
+
+    try {
+      const { data: createdReward, error: createError } = await supabase
+        .from("reward_templates")
+        .insert({
+          family_id: family.id,
+          name: trimmedName,
+          point_cost: cost,
+          is_active: true,
+        })
+        .select("id, name, point_cost, is_active")
+        .single<RewardTemplate>();
+
+      if (createError) throw createError;
+
+      setRewards((currentRewards) => [...currentRewards, createdReward].sort(sortRewards));
+      setNewRewardName("");
+      setNewRewardCost("");
+      setSaved(true);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setSavingRewardId(null);
+    }
+  }
+
+  function updateRewardDraft(id: string, field: "name" | "point_cost", value: string) {
+    setRewards((currentRewards) =>
+      currentRewards.map((reward) =>
+        reward.id === id
+          ? {
+              ...reward,
+              [field]: field === "point_cost" ? Number(value) : value,
+            }
+          : reward,
+      ),
+    );
+    setSaved(false);
+  }
+
+  async function handleSaveReward(reward: RewardTemplate) {
+    if (!family) return;
+
+    const trimmedName = reward.name.trim();
+    const cost = Number(reward.point_cost);
+    if (!trimmedName || !Number.isInteger(cost) || cost <= 0) return;
+
+    setSavingRewardId(reward.id);
+    setSaved(false);
+    setError(null);
+
+    try {
+      const { data: updatedReward, error: updateError } = await supabase
+        .from("reward_templates")
+        .update({ name: trimmedName, point_cost: cost })
+        .eq("family_id", family.id)
+        .eq("id", reward.id)
+        .select("id, name, point_cost, is_active")
+        .single<RewardTemplate>();
+
+      if (updateError) throw updateError;
+
+      setRewards((currentRewards) =>
+        currentRewards
+          .map((currentReward) =>
+            currentReward.id === updatedReward.id ? updatedReward : currentReward,
+          )
+          .sort(sortRewards),
+      );
+      setSaved(true);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setSavingRewardId(null);
+    }
+  }
+
+  async function handleHideReward(reward: RewardTemplate) {
+    if (!family) return;
+
+    if (!window.confirm(`Hide "${reward.name}" from reward choices? Past activity will stay.`)) {
+      return;
+    }
+
+    setSavingRewardId(reward.id);
+    setSaved(false);
+    setError(null);
+
+    try {
+      const { error: updateError } = await supabase
+        .from("reward_templates")
+        .update({ is_active: false })
+        .eq("family_id", family.id)
+        .eq("id", reward.id);
+
+      if (updateError) throw updateError;
+
+      setRewards((currentRewards) =>
+        currentRewards.filter((currentReward) => currentReward.id !== reward.id),
+      );
+      setSaved(true);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setSavingRewardId(null);
+    }
+  }
+
+  function updateChildDraft(
+    id: string,
+    field: "name" | "avatar_icon" | "avatar_colour",
+    value: string,
+  ) {
+    setChildren((currentChildren) =>
+      currentChildren.map((child) => (child.id === id ? { ...child, [field]: value } : child)),
+    );
+    setSaved(false);
+  }
+
+  async function handleSaveChildProfile(child: TestChild) {
+    if (!family) return;
+
+    const trimmedName = child.name.trim();
+    const trimmedIcon = child.avatar_icon?.trim() || "⭐";
+    const avatarColour = child.avatar_colour || "soft-yellow";
+    if (!trimmedName) return;
+
+    setSavingChildId(child.id);
+    setSaved(false);
+    setError(null);
+
+    try {
+      const { data: updatedChild, error: updateError } = await supabase
+        .from("children")
+        .update({
+          name: trimmedName,
+          avatar_icon: trimmedIcon,
+          avatar_colour: avatarColour,
+        })
+        .eq("family_id", family.id)
+        .eq("id", child.id)
+        .select(
+          "id, name, avatar_icon, avatar_colour, current_balance, total_points_earned, total_rewards_redeemed",
+        )
+        .single<TestChild>();
+
+      if (updateError) throw updateError;
+
+      setChildren((currentChildren) =>
+        currentChildren.map((currentChild) =>
+          currentChild.id === updatedChild.id ? updatedChild : currentChild,
+        ),
+      );
+      setSelectedTestChildId((currentChildId) =>
+        currentChildId === updatedChild.id ? updatedChild.id : currentChildId,
+      );
+      setSaved(true);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setSavingChildId(null);
+    }
   }
 
   async function runTestAction(actionId: string, action: () => Promise<TestActionResult>) {
@@ -422,10 +619,18 @@ function SettingsPage() {
         </header>
 
         <Tabs defaultValue="family" className="space-y-4">
-          <TabsList className="grid h-auto w-full grid-cols-3 rounded-xl bg-muted p-1">
+          <TabsList className="grid h-auto w-full grid-cols-2 rounded-xl bg-muted p-1 sm:grid-cols-5">
             <TabsTrigger value="family" className="gap-2 py-2">
               <UsersRound aria-hidden="true" className="size-4" />
               Family
+            </TabsTrigger>
+            <TabsTrigger value="children" className="gap-2 py-2">
+              <Palette aria-hidden="true" className="size-4" />
+              Children
+            </TabsTrigger>
+            <TabsTrigger value="rewards" className="gap-2 py-2">
+              <Gift aria-hidden="true" className="size-4" />
+              Rewards
             </TabsTrigger>
             <TabsTrigger value="points" className="gap-2 py-2">
               <SlidersHorizontal aria-hidden="true" className="size-4" />
@@ -516,6 +721,220 @@ function SettingsPage() {
                 </div>
               ))}
             </section>
+          </TabsContent>
+
+          <TabsContent value="children">
+            <Card className="border-border bg-card shadow-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-2xl text-foreground">
+                  <Palette aria-hidden="true" className="size-6 text-primary" />
+                  Child profiles
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Update each child's display name, icon, and profile colour.
+                </p>
+              </CardHeader>
+              <CardContent>
+                {children.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-secondary/50 bg-secondary/15 px-4 py-8 text-center text-sm font-medium text-secondary-foreground">
+                    Add a child on the dashboard before editing profiles.
+                  </div>
+                ) : (
+                  <div className="grid gap-4">
+                    {children.map((child) => (
+                      <section
+                        key={child.id}
+                        className="grid gap-4 rounded-lg border border-secondary/40 bg-secondary/10 p-4 lg:grid-cols-[auto_1fr]"
+                      >
+                        <div className="flex items-center gap-3 lg:flex-col lg:items-start">
+                          <div
+                            className={`flex size-14 shrink-0 items-center justify-center rounded-2xl text-3xl shadow-sm ${getAvatarColourClass(child.avatar_colour)}`}
+                          >
+                            {child.avatar_icon || "⭐"}
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-foreground">
+                              {child.current_balance} {family?.point_name ?? "points"}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {child.total_rewards_redeemed} rewards redeemed
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="grid gap-3 sm:grid-cols-[1fr_110px_170px_auto]">
+                          <div className="space-y-2">
+                            <Label htmlFor={`${child.id}-profile-name`}>Name</Label>
+                            <Input
+                              id={`${child.id}-profile-name`}
+                              value={child.name}
+                              onChange={(e) => updateChildDraft(child.id, "name", e.target.value)}
+                              autoComplete="off"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor={`${child.id}-profile-icon`}>Icon</Label>
+                            <Input
+                              id={`${child.id}-profile-icon`}
+                              value={child.avatar_icon ?? ""}
+                              onChange={(e) =>
+                                updateChildDraft(child.id, "avatar_icon", e.target.value)
+                              }
+                              maxLength={4}
+                              placeholder="⭐"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor={`${child.id}-profile-colour`}>Colour</Label>
+                            <Select
+                              value={child.avatar_colour ?? "soft-yellow"}
+                              onValueChange={(value) =>
+                                updateChildDraft(child.id, "avatar_colour", value)
+                              }
+                            >
+                              <SelectTrigger id={`${child.id}-profile-colour`} className="bg-card">
+                                <SelectValue placeholder="Choose a colour" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {avatarColourOptions.map((option) => (
+                                  <SelectItem key={option.value} value={option.value}>
+                                    {option.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <Button
+                            type="button"
+                            onClick={() => handleSaveChildProfile(child)}
+                            disabled={savingChildId === child.id || !child.name.trim()}
+                            className="self-end"
+                          >
+                            <Save aria-hidden="true" />
+                            {savingChildId === child.id ? "Saving..." : "Save"}
+                          </Button>
+                        </div>
+                      </section>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="rewards">
+            <Card className="border-border bg-card shadow-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-2xl text-foreground">
+                  <Gift aria-hidden="true" className="size-6 text-primary" />
+                  Reward management
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Add, edit, or hide the rewards children can redeem.
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <form
+                  className="grid gap-3 rounded-lg border border-secondary/40 bg-secondary/10 p-4 sm:grid-cols-[1fr_9rem_auto]"
+                  onSubmit={handleCreateReward}
+                >
+                  <div className="space-y-2">
+                    <Label htmlFor="settings-new-reward-name">New reward</Label>
+                    <Input
+                      id="settings-new-reward-name"
+                      value={newRewardName}
+                      onChange={(e) => setNewRewardName(e.target.value)}
+                      placeholder="Movie night"
+                      autoComplete="off"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="settings-new-reward-cost">Cost</Label>
+                    <Input
+                      id="settings-new-reward-cost"
+                      type="number"
+                      min={1}
+                      step={1}
+                      value={newRewardCost}
+                      onChange={(e) => setNewRewardCost(e.target.value)}
+                      placeholder="10"
+                    />
+                  </div>
+                  <Button
+                    type="submit"
+                    disabled={
+                      savingRewardId === "new" ||
+                      !newRewardName.trim() ||
+                      Number(newRewardCost) <= 0
+                    }
+                    className="self-end"
+                  >
+                    <Gift aria-hidden="true" />
+                    {savingRewardId === "new" ? "Adding..." : "Add reward"}
+                  </Button>
+                </form>
+
+                {rewards.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-secondary/50 bg-secondary/15 px-4 py-8 text-center text-sm font-medium text-secondary-foreground">
+                    Add the first family reward here, or from any child's Rewards screen.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {rewards.map((reward) => (
+                      <section
+                        key={reward.id}
+                        className="grid gap-3 rounded-lg border border-border bg-background/60 p-4 sm:grid-cols-[1fr_9rem_auto_auto]"
+                      >
+                        <div className="space-y-2">
+                          <Label htmlFor={`${reward.id}-reward-name`}>Reward</Label>
+                          <Input
+                            id={`${reward.id}-reward-name`}
+                            value={reward.name}
+                            onChange={(e) => updateRewardDraft(reward.id, "name", e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor={`${reward.id}-reward-cost`}>Cost</Label>
+                          <Input
+                            id={`${reward.id}-reward-cost`}
+                            type="number"
+                            min={1}
+                            step={1}
+                            value={reward.point_cost}
+                            onChange={(e) =>
+                              updateRewardDraft(reward.id, "point_cost", e.target.value)
+                            }
+                          />
+                        </div>
+                        <Button
+                          type="button"
+                          onClick={() => handleSaveReward(reward)}
+                          disabled={
+                            savingRewardId === reward.id ||
+                            !reward.name.trim() ||
+                            Number(reward.point_cost) <= 0
+                          }
+                          className="self-end"
+                        >
+                          <Pencil aria-hidden="true" />
+                          {savingRewardId === reward.id ? "Saving..." : "Save"}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => handleHideReward(reward)}
+                          disabled={savingRewardId === reward.id}
+                          className="self-end"
+                        >
+                          <Trash2 aria-hidden="true" />
+                          Hide
+                        </Button>
+                      </section>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="points">
@@ -761,14 +1180,6 @@ function SettingsPage() {
 
 const futureSettings = [
   {
-    title: "Reward management",
-    description: "Editing, hiding, and reordering family rewards can live here next.",
-  },
-  {
-    title: "Child profiles",
-    description: "Avatar, colour, and archive controls have a clear place to grow into.",
-  },
-  {
     title: "Family members",
     description: "Invites and parent roles can be added without crowding the dashboard.",
   },
@@ -788,7 +1199,7 @@ async function loadTestDataForUser(userId: string) {
     .maybeSingle<FamilyMember>();
 
   if (membershipError) throw membershipError;
-  if (!membership) return { family: null, children: [] };
+  if (!membership) return { family: null, children: [], rewards: [] };
 
   const { data: family, error: familyError } = await supabase
     .from("families")
@@ -800,16 +1211,57 @@ async function loadTestDataForUser(userId: string) {
 
   const { data: children, error: childrenError } = await supabase
     .from("children")
-    .select("id, name, current_balance")
+    .select(
+      "id, name, avatar_icon, avatar_colour, current_balance, total_points_earned, total_rewards_redeemed",
+    )
     .eq("family_id", family.id)
     .order("created_at", { ascending: true });
 
   if (childrenError) throw childrenError;
 
+  const { data: rewards, error: rewardsError } = await supabase
+    .from("reward_templates")
+    .select("id, name, point_cost, is_active")
+    .eq("family_id", family.id)
+    .eq("is_active", true)
+    .order("point_cost", { ascending: true })
+    .order("created_at", { ascending: true });
+
+  if (rewardsError) throw rewardsError;
+
   return {
     family,
     children: (children ?? []) as TestChild[],
+    rewards: ((rewards ?? []) as RewardTemplate[]).sort(sortRewards),
   };
+}
+
+const avatarColourOptions = [
+  { value: "soft-yellow", label: "Sunshine" },
+  { value: "mint", label: "Mint" },
+  { value: "sky", label: "Sky" },
+  { value: "pink", label: "Pink" },
+  { value: "lavender", label: "Lavender" },
+];
+
+function getAvatarColourClass(colour: string | null) {
+  switch (colour) {
+    case "mint":
+      return "bg-primary/20 text-primary";
+    case "sky":
+      return "bg-secondary/30 text-secondary-foreground";
+    case "pink":
+      return "bg-destructive/10 text-destructive";
+    case "lavender":
+      return "bg-muted text-foreground";
+    case "soft-yellow":
+    default:
+      return "bg-sunshine text-sunshine-foreground";
+  }
+}
+
+function sortRewards(a: RewardTemplate, b: RewardTemplate) {
+  return a.point_cost - b.point_cost || a.name.localeCompare(b.name);
 }
 
 function getTestChild(children: TestChild[]) {

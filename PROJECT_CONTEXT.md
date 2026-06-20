@@ -14,6 +14,13 @@ project. Read this before making changes.
   points, reward creation/redemption, Journey, First Points badge unlock, Activity History, Admin
   Settings, child removal from the dashboard, a teal/mint mobile-first visual palette, and Admin
   Settings test tools.
+- Current uncommitted settings work completes the Admin Settings child profile and reward
+  management sections:
+  - Settings now has Family, Children, Rewards, Points, and Tools tabs.
+  - Child profiles can be edited from Settings: display name, avatar icon, and avatar colour.
+  - Reward templates can be created, renamed, repriced, and hidden from Settings.
+  - These changes use existing `children` and `reward_templates` tables and RLS; no schema or policy
+    change was needed.
 - Recent committed work fixed the Admin Settings "Reset badges" test tool by adding the missing
   `child_badges` DELETE RLS policy and clearing pending local badge celebration state after reset.
 - Latest committed work adds a Test child picker to Admin Settings test tools so sample actions,
@@ -269,6 +276,11 @@ project. Read this before making changes.
 
 - Rewards lives at `/children/$childId/rewards`.
 - Parents can add active family reward templates using `reward_templates`.
+- Admin Settings also has a Rewards tab for family-level reward management:
+  - Loads active `reward_templates` for the signed-in user's first family.
+  - Creates active rewards with name and point cost.
+  - Saves edits to reward name and point cost.
+  - Hides rewards by setting `is_active = false`, preserving past transaction references.
 - Redeeming a reward inserts a `transactions` row with:
   - `type = "reward_redeemed"`
   - negative `points_change`
@@ -278,6 +290,16 @@ project. Read this before making changes.
   `children.total_rewards_redeemed`.
 - The page reloads the selected child after redemption so balances and totals stay in sync with the
   database trigger.
+
+### Child Profiles
+
+- Dashboard still owns adding and removing child profiles.
+- Admin Settings has a Children tab for profile edits:
+  - Loads each child's `name`, `avatar_icon`, `avatar_colour`, balance, earned total, and reward
+    redemption total.
+  - Saves `name`, `avatar_icon`, and `avatar_colour` updates through the existing family-member
+    child update policy.
+  - Uses fixed avatar colour choices: `soft-yellow`, `mint`, `sky`, `pink`, and `lavender`.
 
 ### Journey
 
