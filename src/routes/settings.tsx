@@ -6,6 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import {
   getAdminSettings,
@@ -48,6 +55,7 @@ function SettingsPage() {
   const [settings, setSettings] = useState<AdminSettings>(() => getAdminSettings());
   const [family, setFamily] = useState<TestFamily | null>(null);
   const [children, setChildren] = useState<TestChild[]>([]);
+  const [selectedTestChildId, setSelectedTestChildId] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -75,6 +83,9 @@ function SettingsPage() {
         setSettings(getAdminSettings());
         setFamily(testData.family);
         setChildren(testData.children);
+        setSelectedTestChildId((currentChildId) =>
+          getAvailableChildId(testData.children, currentChildId),
+        );
         setLoading(false);
       }
     }
@@ -153,7 +164,9 @@ function SettingsPage() {
       .order("created_at", { ascending: true });
 
     if (childrenError) throw childrenError;
-    setChildren((refreshedChildren ?? []) as TestChild[]);
+    const nextChildren = (refreshedChildren ?? []) as TestChild[];
+    setChildren(nextChildren);
+    setSelectedTestChildId((currentChildId) => getAvailableChildId(nextChildren, currentChildId));
   }
 
   async function runTestAction(actionId: string, action: () => Promise<TestActionResult>) {
@@ -174,7 +187,7 @@ function SettingsPage() {
 
   async function handleAddSampleActivity() {
     await runTestAction("sample-activity", async () => {
-      const child = getTestChild(children);
+      const child = getSelectedTestChild(children, selectedTestChildId);
       if (!family) throw new Error("Family data is not ready yet.");
       const samplePoints = settings.activityPointValues[0]?.points ?? 1;
 
@@ -199,7 +212,9 @@ function SettingsPage() {
     await runTestAction("badge-activity", async () => {
       if (!family) throw new Error("Family data is not ready yet.");
 
-      const child = await getBadgeUnlockTestChild(children);
+      const child = await getBadgeUnlockTestChild(
+        getSelectedTestChild(children, selectedTestChildId),
+      );
       const firstPointsThreshold = getFirstPointsThreshold(settings);
       const pointsNeeded = Math.max(firstPointsThreshold - child.current_balance, 1);
 
@@ -222,8 +237,12 @@ function SettingsPage() {
   }
 
   async function handleResetPoints() {
+    const child = getSelectedTestChild(children, selectedTestChildId);
+
     if (
-      !window.confirm("Reset all child point balances to 0? Activity history will stay in place.")
+      !window.confirm(
+        `Reset ${child.name}'s point balance to 0? Activity history will stay in place.`,
+      )
     ) {
       return;
     }
@@ -234,30 +253,36 @@ function SettingsPage() {
       const { error: resetError } = await supabase
         .from("children")
         .update({ current_balance: 0 })
-        .eq("family_id", family.id);
+        .eq("family_id", family.id)
+        .eq("id", child.id);
 
       if (resetError) throw resetError;
-      return { message: "Point balances were reset to 0 for this family." };
+      await verifyPointsReset(family.id, child.id);
+      return { message: `${child.name}'s point balance was reset to 0.` };
     });
   }
 
   async function handleResetBadges() {
+    const child = getSelectedTestChild(children, selectedTestChildId);
+
     if (
       !window.confirm(
-        "Reset all unlocked badges for this family? Activity history will stay in place.",
+        `Reset unlocked badges for ${child.name}? Activity history will stay in place.`,
       )
     ) {
       return;
     }
 
     await runTestAction("reset-badges", async () => {
-      await deleteChildBadges(children);
-      return { message: "Unlocked badges were reset for this family." };
+      await deleteChildBadges([child]);
+      return { message: `${child.name}'s unlocked badges were reset.` };
     });
   }
 
   async function handleClearActivityHistory() {
-    if (!window.confirm("Clear all activity history for this family? This cannot be undone.")) {
+    const child = getSelectedTestChild(children, selectedTestChildId);
+
+    if (!window.confirm(`Clear ${child.name}'s activity history? This cannot be undone.`)) {
       return;
     }
 
@@ -267,18 +292,21 @@ function SettingsPage() {
       const { error: deleteError } = await supabase
         .from("transactions")
         .delete()
-        .eq("family_id", family.id);
+        .eq("family_id", family.id)
+        .eq("child_id", child.id);
 
       if (deleteError) throw deleteError;
-      await verifyActivityHistoryCleared(family.id);
-      return { message: "Activity history was cleared for this family." };
+      await verifyActivityHistoryCleared(family.id, child.id);
+      return { message: `${child.name}'s activity history was cleared.` };
     });
   }
 
   async function handleResetAllTestData() {
+    const child = getSelectedTestChild(children, selectedTestChildId);
+
     if (
       !window.confirm(
-        "Reset all test data for this family? This will clear activity history, reset badges, and set point balances to 0.",
+        `Reset all test data for ${child.name}? This will clear activity history, reset badges, and set the point balance to 0.`,
       )
     ) {
       return;
@@ -290,22 +318,24 @@ function SettingsPage() {
       const { error: deleteTransactionsError } = await supabase
         .from("transactions")
         .delete()
-        .eq("family_id", family.id);
+        .eq("family_id", family.id)
+        .eq("child_id", child.id);
 
       if (deleteTransactionsError) throw deleteTransactionsError;
-      await verifyActivityHistoryCleared(family.id);
+      await verifyActivityHistoryCleared(family.id, child.id);
 
-      await deleteChildBadges(children);
+      await deleteChildBadges([child]);
 
       const { error: resetPointsError } = await supabase
         .from("children")
         .update({ current_balance: 0 })
-        .eq("family_id", family.id);
+        .eq("family_id", family.id)
+        .eq("id", child.id);
 
       if (resetPointsError) throw resetPointsError;
-      await verifyPointsReset(family.id);
+      await verifyPointsReset(family.id, child.id);
 
-      return { message: "All test data was reset for this family." };
+      return { message: `All test data was reset for ${child.name}.` };
     });
   }
 
@@ -420,9 +450,26 @@ function SettingsPage() {
                     Admin-only helpers for checking points, badges, and Activity History. These are
                     for testing setup and cleanup, not normal daily use.
                   </p>
-                  <p className="text-xs font-medium text-muted-foreground">
-                    Sample actions use {children[0]?.name ?? "the first child in this family"}.
-                  </p>
+                </div>
+
+                <div className="grid gap-2 sm:max-w-xs">
+                  <Label htmlFor="test-child">Test child</Label>
+                  <Select
+                    value={selectedTestChildId}
+                    onValueChange={setSelectedTestChildId}
+                    disabled={children.length === 0 || Boolean(testRunning)}
+                  >
+                    <SelectTrigger id="test-child" className="bg-card">
+                      <SelectValue placeholder="Choose a child" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {children.map((child) => (
+                        <SelectItem key={child.id} value={child.id}>
+                          {child.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -468,7 +515,7 @@ function SettingsPage() {
                     type="button"
                     variant="outline"
                     onClick={handleClearActivityHistory}
-                    disabled={!family || Boolean(testRunning)}
+                    disabled={!family || children.length === 0 || Boolean(testRunning)}
                   >
                     <Trash2 aria-hidden="true" />
                     {testRunning === "clear-history" ? "Clearing…" : "Clear activity history"}
@@ -477,7 +524,7 @@ function SettingsPage() {
                     type="button"
                     variant="destructive"
                     onClick={handleResetAllTestData}
-                    disabled={!family || Boolean(testRunning)}
+                    disabled={!family || children.length === 0 || Boolean(testRunning)}
                   >
                     <Trash2 aria-hidden="true" />
                     {testRunning === "reset-all" ? "Resetting…" : "Reset all test data"}
@@ -578,13 +625,22 @@ async function loadTestDataForUser(userId: string) {
 
 function getTestChild(children: TestChild[]) {
   const child = children[0];
-  if (!child) throw new Error("Add a child before using sample activity tools.");
+  if (!child) throw new Error("Add a child before using test tools.");
   return child;
 }
 
-async function getBadgeUnlockTestChild(children: TestChild[]) {
-  getTestChild(children);
+function getAvailableChildId(children: TestChild[], selectedChildId: string) {
+  if (children.some((child) => child.id === selectedChildId)) return selectedChildId;
+  return children[0]?.id ?? "";
+}
 
+function getSelectedTestChild(children: TestChild[], selectedChildId: string) {
+  const child = children.find((currentChild) => currentChild.id === selectedChildId);
+  if (child) return child;
+  return getTestChild(children);
+}
+
+async function getBadgeUnlockTestChild(child: TestChild) {
   const { data: firstPointsBadge, error: badgeError } = await supabase
     .from("badges")
     .select("id")
@@ -597,26 +653,18 @@ async function getBadgeUnlockTestChild(children: TestChild[]) {
   const { data: existingChildBadges, error: existingBadgeError } = await supabase
     .from("child_badges")
     .select("child_id")
-    .in(
-      "child_id",
-      children.map((child) => child.id),
-    )
+    .eq("child_id", child.id)
     .eq("badge_id", firstPointsBadge.id);
 
   if (existingBadgeError) throw existingBadgeError;
 
-  const childIdsWithBadge = new Set(
-    (existingChildBadges ?? []).map((childBadge) => childBadge.child_id),
-  );
-  const childWithoutBadge = children.find((child) => !childIdsWithBadge.has(child.id));
-
-  if (!childWithoutBadge) {
+  if ((existingChildBadges ?? []).length > 0) {
     throw new Error(
-      "All children still have the First Points badge. Reset badges first; if you already did, the reset did not remove badge records.",
+      `${child.name} already has the First Points badge. Reset this child's badges first; if you already did, the reset did not remove badge records.`,
     );
   }
 
-  return childWithoutBadge;
+  return child;
 }
 
 async function deleteChildBadges(children: TestChild[]) {
@@ -656,11 +704,12 @@ async function loadChildBadgeIds(childIds: string[]) {
   return (childBadges ?? []).map((childBadge) => childBadge.id);
 }
 
-async function verifyActivityHistoryCleared(familyId: string) {
+async function verifyActivityHistoryCleared(familyId: string, childId: string) {
   const { data: remainingTransactions, error: remainingTransactionsError } = await supabase
     .from("transactions")
     .select("id")
     .eq("family_id", familyId)
+    .eq("child_id", childId)
     .limit(1);
 
   if (remainingTransactionsError) throw remainingTransactionsError;
@@ -672,11 +721,12 @@ async function verifyActivityHistoryCleared(familyId: string) {
   }
 }
 
-async function verifyPointsReset(familyId: string) {
+async function verifyPointsReset(familyId: string, childId: string) {
   const { data: childrenWithPoints, error: childrenError } = await supabase
     .from("children")
     .select("id")
     .eq("family_id", familyId)
+    .eq("id", childId)
     .gt("current_balance", 0)
     .limit(1);
 

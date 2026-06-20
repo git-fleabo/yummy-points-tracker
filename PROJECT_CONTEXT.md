@@ -1,6 +1,6 @@
 # Yummy Points Project Context
 
-Last updated: 2026-06-18
+Last updated: 2026-06-20
 
 This file is the handoff document for Codex, Lovable, or any other assistant picking up the
 project. Read this before making changes.
@@ -13,12 +13,12 @@ project. Read this before making changes.
 - Current implementation supports auth, family bootstrap, child profiles, child home, adding
   points, First Points badge unlock, Activity History, Admin Settings, a brighter visual palette,
   and Admin Settings test tools.
-- Latest local work fixed the Admin Settings "Reset badges" test tool by adding the missing
+- Recent committed work fixed the Admin Settings "Reset badges" test tool by adding the missing
   `child_badges` DELETE RLS policy and clearing pending local badge celebration state after reset.
-- Latest local work is not committed yet.
-- Current uncommitted files:
-  - `/Users/noam/Documents/Codex/yummy-points-tracker/src/routes/settings.tsx`
-  - `/Users/noam/Documents/Codex/yummy-points-tracker/PROJECT_CONTEXT.md`
+- Latest committed work adds a Test child picker to Admin Settings test tools so sample actions,
+  resets, and cleanup apply to the selected child instead of automatically affecting every child in
+  the family.
+- Expected clean working tree after current handoff commit.
 - Live Supabase migration added this iteration:
   - `allow_family_members_delete_child_badges`
 - Root cause of the failed badge reset:
@@ -38,17 +38,15 @@ project. Read this before making changes.
   - Clears pending `sessionStorage` badge celebration keys for those children so stale unlocked badge
     banners do not appear after reset.
 - Assumptions made:
-  - Admin Settings test tools continue to operate on the current user's first loaded family and all
-    currently loaded children in that family; there is still no child selector.
+  - Admin Settings test tools continue to operate on the current user's first loaded family and the
+    currently selected child in that family.
   - The existing `is_family_member()` helper remains the right authorization boundary for parent
     test tools.
-- Follow-up tasks / known limitations from this iteration:
+- Follow-up tasks / known limitations from the badge reset iteration:
   - Verify the reset in a signed-in Lovable/local browser session with real test data.
-  - Consider adding a child selector to Test tools if reset actions should target one child instead
-    of all family children.
   - Clear activity history may still need its own narrow `transactions` DELETE policy if it fails in
     the same way.
-- Verification already run after latest change:
+- Verification already run after the badge reset fix:
   - `npm run build` passes.
   - `npx eslint src/routes/settings.tsx` passes.
   - `git diff --check` passes.
@@ -288,7 +286,10 @@ project. Read this before making changes.
   - Reset all test data.
 - Destructive actions use `window.confirm`.
 - Tools load the signed-in user's first family membership and use that family's children.
-- Sample actions currently target the first child in the family.
+- A Test child picker defaults to the first child in the family and stays on the selected child while
+  that child still exists in refreshed data.
+- Sample actions, reset points, reset badges, clear activity history, and reset all test data now
+  target the selected child.
 - "Add sample activity":
   - Calls the shared `addPointsActivity()` helper used by Add Points.
   - Uses note `"Test sample activity"`.
@@ -301,9 +302,9 @@ project. Read this before making changes.
 - "Add sample badge-unlocking activity":
   - Calls the shared `addPointsActivity()` helper used by Add Points.
   - Uses note `"Test badge-unlocking activity"`.
-  - Chooses the first child in the family that does not already have First Points.
-  - Amount is enough to reach the current First Points threshold from that child's loaded balance,
-    with a minimum of 1 point.
+  - Uses the selected child.
+  - Amount is enough to reach the current First Points threshold from the selected child's loaded
+    balance, with a minimum of 1 point.
   - Requires the normal First Points badge insert to succeed; failures are shown visibly in the
     Admin Settings error area.
   - Appears in Activity History with the First Points badge shown on the unlocking transaction.
@@ -327,30 +328,30 @@ project. Read this before making changes.
     `"Activity history was not cleared. Check the database delete policy for transactions."`
   - If points remain after Reset all test data, the UI shows:
     `"Point balances were not reset."`
-  - If all children still have First Points, the badge sample button explains that reset did not
-    remove badge records instead of implying the user simply forgot to reset.
+  - If the selected child already has First Points, the badge sample button asks the parent to reset
+    that child's badges first instead of deleting or bypassing existing badge state.
 - Assumptions made:
   - The existing database trigger remains responsible for increasing `children.current_balance`
     after a `transactions` insert.
   - The app currently has only one implemented badge flow: First Points.
   - The `badges.icon` value is safe to display as a short visual label; if it is missing, the UI
     falls back to a Lucide badge icon.
-  - If every child already has First Points, the badge sample button should show an error asking the
-    parent to reset badges first rather than deleting or bypassing existing badge state.
+  - If the selected child already has First Points, the badge sample button should show an error
+    asking the parent to reset badges first rather than deleting or bypassing existing badge state.
 - "Reset points":
-  - Sets all child balances in the family to 0.
+  - Sets the selected child's balance to 0.
   - Leaves history in place.
 - "Reset badges":
-  - Deletes `child_badges` rows for the family's children.
-  - Verifies no `child_badges` rows remain for those children before showing success.
+  - Deletes `child_badges` rows for the selected child.
+  - Verifies no `child_badges` rows remain for that child before showing success.
   - Leaves history in place.
 - "Clear activity history":
-  - Deletes the family's `transactions` rows.
-  - Verifies no `transactions` rows remain for the family before showing success.
+  - Deletes the selected child's `transactions` rows.
+  - Verifies no `transactions` rows remain for that child before showing success.
 - "Reset all test data":
-  - Deletes the family's `transactions` rows.
-  - Deletes `child_badges` rows for the family's children.
-  - Sets all child balances in the family to 0.
+  - Deletes the selected child's `transactions` rows.
+  - Deletes `child_badges` rows for the selected child.
+  - Sets the selected child's balance to 0.
   - Verifies each reset step before showing success.
 
 ## Visual System
@@ -623,21 +624,19 @@ Source: Supabase MCP reads on 2026-06-16 for project `tbosqyedogluzcpzodwe`.
 
 ## Suggested Next Steps
 
-1. Review the latest uncommitted changes in GitHub Desktop.
-2. Before committing, decide whether to keep the current test tools as-is or first fix the likely
-   RLS gap for deleting `transactions` and `child_badges`.
-3. Commit and push through GitHub Desktop when satisfied.
-4. In Lovable/preview, log in with a test account and verify:
+1. Push the latest local commits through GitHub Desktop when satisfied.
+2. In Lovable/preview, log in with a test account and verify:
    - Admin Settings renders.
+   - The Test child picker appears and can switch between children.
    - Add sample activity appears in Activity History.
    - Add sample badge-unlocking activity unlocks/shows First Points.
-   - Reset points works.
-   - Reset badges works or exposes the expected RLS issue.
+   - Reset points affects only the selected child.
+   - Reset badges affects only the selected child.
    - Clear activity history works or exposes the expected RLS issue.
    - Reset all test data works or exposes the expected RLS issue.
-5. Add a child selector to Test tools so sample data can target any child, not only the first child.
-6. Move Admin Settings from localStorage to a Supabase-backed family settings model.
-7. Add explicit badge activity history data if more badges are added.
-8. Build the Rewards flow using the existing `reward_templates` table.
-9. Clean up pre-existing lint formatting errors so `npm run lint` can become a reliable gate.
-10. Remove or hide `dashboardBuildMarker` once deployment confidence is no longer needed.
+3. If Clear activity history fails, add a narrow `transactions` DELETE policy for family members.
+4. Move Admin Settings from localStorage to a Supabase-backed family settings model.
+5. Add explicit badge activity history data if more badges are added.
+6. Build the Rewards flow using the existing `reward_templates` table.
+7. Clean up pre-existing lint formatting errors so `npm run lint` can become a reliable gate.
+8. Remove or hide `dashboardBuildMarker` once deployment confidence is no longer needed.
