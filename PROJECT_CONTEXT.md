@@ -1,6 +1,6 @@
 # Yummy Points Project Context
 
-Last updated: 2026-06-16
+Last updated: 2026-06-18
 
 This file is the handoff document for Codex, Lovable, or any other assistant picking up the
 project. Read this before making changes.
@@ -13,20 +13,48 @@ project. Read this before making changes.
 - Current implementation supports auth, family bootstrap, child profiles, child home, adding
   points, First Points badge unlock, Activity History, Admin Settings, a brighter visual palette,
   and Admin Settings test tools.
-- Latest local work added a tasteful badge unlock celebration for normal Add Points and Admin
-  Settings test tool badge unlocks.
+- Latest local work fixed the Admin Settings "Reset badges" test tool by adding the missing
+  `child_badges` DELETE RLS policy and clearing pending local badge celebration state after reset.
 - Latest local work is not committed yet.
 - Current uncommitted files:
-  - `/Users/noam/Documents/Codex/yummy-points-tracker/src/components/badge-unlock-celebration.tsx`
-  - `/Users/noam/Documents/Codex/yummy-points-tracker/src/lib/points-flow.ts`
-  - `/Users/noam/Documents/Codex/yummy-points-tracker/src/routes/children.$childId.tsx`
-  - `/Users/noam/Documents/Codex/yummy-points-tracker/src/routes/children.$childId_.add-points.tsx`
   - `/Users/noam/Documents/Codex/yummy-points-tracker/src/routes/settings.tsx`
   - `/Users/noam/Documents/Codex/yummy-points-tracker/PROJECT_CONTEXT.md`
+- Live Supabase migration added this iteration:
+  - `allow_family_members_delete_child_badges`
+- Root cause of the failed badge reset:
+  - The frontend delete query targeted the correct `child_badges` table and filtered by the current
+    family's child IDs, but live RLS had SELECT and INSERT policies only. The authenticated delete
+    was filtered to zero rows, so the follow-up verification still found badge records.
+- Database/RLS change made:
+  - Added `Family members can delete child badges` on `public.child_badges` for `authenticated`.
+  - The policy only allows deleting a badge row when its `child_id` belongs to a child whose
+    `family_id` passes `public.is_family_member(family_id)`.
+  - No broad security disabling or service-role frontend changes were made.
+- How Reset badges now works:
+  - Collects the current family's loaded child IDs.
+  - Reads current `child_badges` rows for those children.
+  - Deletes only those `child_badges` rows through normal Supabase RLS.
+  - Reads `child_badges` again and shows success only when no rows remain.
+  - Clears pending `sessionStorage` badge celebration keys for those children so stale unlocked badge
+    banners do not appear after reset.
+- Assumptions made:
+  - Admin Settings test tools continue to operate on the current user's first loaded family and all
+    currently loaded children in that family; there is still no child selector.
+  - The existing `is_family_member()` helper remains the right authorization boundary for parent
+    test tools.
+- Follow-up tasks / known limitations from this iteration:
+  - Verify the reset in a signed-in Lovable/local browser session with real test data.
+  - Consider adding a child selector to Test tools if reset actions should target one child instead
+    of all family children.
+  - Clear activity history may still need its own narrow `transactions` DELETE policy if it fails in
+    the same way.
 - Verification already run after latest change:
   - `npm run build` passes.
-  - `npx eslint src/components/badge-unlock-celebration.tsx src/lib/points-flow.ts src/routes/children.\$childId.tsx src/routes/children.\$childId_.add-points.tsx src/routes/settings.tsx src/routes/children.\$childId_.activity-history.tsx` passes.
+  - `npx eslint src/routes/settings.tsx` passes.
   - `git diff --check` passes.
+  - Supabase live policy readback confirms `Family members can delete child badges` exists on
+    `public.child_badges`.
+  - Supabase migration list shows `20260618165815_allow_family_members_delete_child_badges`.
   - Full `npm run lint` currently fails on pre-existing formatting issues in unrelated files:
     `src/routes/__root.tsx`, `src/routes/login.tsx`, and `src/routes/signup.tsx`, plus existing
     Fast Refresh warnings in shared UI exports.
@@ -349,6 +377,7 @@ Source: Supabase MCP reads on 2026-06-16 for project `tbosqyedogluzcpzodwe`.
 
 - `20260615173627_initial_yummy_points_schema`
 - `20260615173856_add_parent_auth_and_rls_policies`
+- `20260618165815_allow_family_members_delete_child_badges`
 
 ### Edge Functions
 
@@ -543,9 +572,7 @@ Source: Supabase MCP reads on 2026-06-16 for project `tbosqyedogluzcpzodwe`.
 - RLS policies:
   - Family members can view child badges for their family children.
   - Family members can create child badges for their family children.
-- Important caveat:
-  - There is no DELETE policy listed for child badges. If the reset-badges test tool fails, this is
-    likely why.
+  - Family members can delete child badges for their family children.
 
 ### Public Helper Functions
 
@@ -579,9 +606,10 @@ Source: Supabase MCP reads on 2026-06-16 for project `tbosqyedogluzcpzodwe`.
 
 ## Known Issues / Risks
 
-- The latest test tools include delete actions, but live RLS readout did not list DELETE policies for
-  `transactions` or `child_badges`. Verify behavior as an authenticated family member. If deletion
-  fails, add appropriate admin/test policies, use a database function, or adjust tools.
+- The latest test tools include delete actions, but live RLS readout still did not list a DELETE
+  policy for `transactions`. Verify Clear activity history as an authenticated family member. If it
+  fails, add an appropriately narrow transactions delete policy, use a database function, or adjust
+  the tool.
 - Reset points directly updates `children.current_balance`; it does not reset
   `total_points_earned` or `total_rewards_redeemed`.
 - Clearing transactions after balances have been changed by triggers can make historical totals and

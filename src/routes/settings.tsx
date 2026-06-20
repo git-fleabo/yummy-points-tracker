@@ -624,7 +624,10 @@ async function deleteChildBadges(children: TestChild[]) {
   if (childIds.length === 0) return;
 
   const badgeIdsBeforeDelete = await loadChildBadgeIds(childIds);
-  if (badgeIdsBeforeDelete.length === 0) return;
+  if (badgeIdsBeforeDelete.length === 0) {
+    clearPendingBadgeCelebrations(childIds);
+    return;
+  }
 
   const { error: deleteError } = await supabase
     .from("child_badges")
@@ -639,6 +642,8 @@ async function deleteChildBadges(children: TestChild[]) {
       "Badge reset did not remove badge records. Check the database delete policy for child_badges.",
     );
   }
+
+  clearPendingBadgeCelebrations(childIds);
 }
 
 async function loadChildBadgeIds(childIds: string[]) {
@@ -680,4 +685,12 @@ async function verifyPointsReset(familyId: string) {
   if ((childrenWithPoints ?? []).length > 0) {
     throw new Error("Point balances were not reset.");
   }
+}
+
+function clearPendingBadgeCelebrations(childIds: string[]) {
+  if (typeof window === "undefined") return;
+
+  childIds.forEach((childId) => {
+    window.sessionStorage.removeItem(`badge-unlocked-${childId}`);
+  });
 }
