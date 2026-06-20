@@ -1,7 +1,18 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { LogOut, Plus, Settings, UserRound } from "lucide-react";
+import { ArrowRight, LogOut, Plus, Settings, Sparkles, Trash2, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -27,6 +38,7 @@ type Child = {
   name: string;
   avatar_icon: string | null;
   current_balance: number;
+  total_rewards_redeemed: number;
 };
 
 const defaultFamilyName = "My Family";
@@ -47,8 +59,10 @@ function DashboardPage() {
   const [family, setFamily] = useState<Family | null>(null);
   const [children, setChildren] = useState<Child[]>([]);
   const [childName, setChildName] = useState("");
+  const [childToRemove, setChildToRemove] = useState<Child | null>(null);
   const [loading, setLoading] = useState(true);
   const [addingChild, setAddingChild] = useState(false);
+  const [removingChild, setRemovingChild] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -140,7 +154,7 @@ function DashboardPage() {
 
     const { data: loadedChildren, error: childrenError } = await supabase
       .from("children")
-      .select("id, name, avatar_icon, current_balance")
+      .select("id, name, avatar_icon, current_balance, total_rewards_redeemed")
       .eq("family_id", loadedFamily.id)
       .order("created_at", { ascending: true });
 
@@ -168,7 +182,7 @@ function DashboardPage() {
         avatar_icon: "⭐",
         avatar_colour: "soft-yellow",
       })
-      .select("id, name, avatar_icon, current_balance")
+      .select("id, name, avatar_icon, current_balance, total_rewards_redeemed")
       .single<Child>();
 
     setAddingChild(false);
@@ -180,6 +194,47 @@ function DashboardPage() {
 
     setChildren((currentChildren) => [...currentChildren, newChild]);
     setChildName("");
+  }
+
+  async function handleRemoveChild() {
+    if (!family || !childToRemove) return;
+
+    setRemovingChild(true);
+    setError(null);
+
+    try {
+      const { error: badgesError } = await supabase
+        .from("child_badges")
+        .delete()
+        .eq("child_id", childToRemove.id);
+
+      if (badgesError) throw badgesError;
+
+      const { error: transactionsError } = await supabase
+        .from("transactions")
+        .delete()
+        .eq("family_id", family.id)
+        .eq("child_id", childToRemove.id);
+
+      if (transactionsError) throw transactionsError;
+
+      const { error: childError } = await supabase
+        .from("children")
+        .delete()
+        .eq("family_id", family.id)
+        .eq("id", childToRemove.id);
+
+      if (childError) throw childError;
+
+      setChildren((currentChildren) =>
+        currentChildren.filter((child) => child.id !== childToRemove.id),
+      );
+      setChildToRemove(null);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setRemovingChild(false);
+    }
   }
 
   async function handleSignOut() {
@@ -220,32 +275,26 @@ function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background px-4 py-8 text-foreground sm:px-6 lg:px-8">
-      <main className="mx-auto flex w-full max-w-5xl flex-col gap-8">
-        <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-muted-foreground">{family.name}</p>
-            <div>
-              <h1 className="text-4xl font-semibold tracking-normal text-primary">Yummy Points</h1>
-              <p className="mt-2 text-base text-muted-foreground">
-                Turn missed treats into future treats.
-              </p>
+    <div className="min-h-screen bg-background px-4 py-4 text-foreground sm:px-6 lg:px-8">
+      <main className="mx-auto flex w-full max-w-5xl flex-col gap-5 pb-8">
+        <header className="sticky top-0 z-10 -mx-4 border-b border-border/70 bg-background/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium text-muted-foreground">{family.name}</p>
+              <h1 className="truncate text-2xl font-semibold tracking-normal text-foreground sm:text-4xl">
+                Yummy Points
+              </h1>
             </div>
-            <p className="text-xs font-medium text-muted-foreground">
-              Test marker: {dashboardBuildMarker}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button asChild variant="outline">
-              <Link to="/settings">
-                <Settings aria-hidden="true" />
-                Settings
-              </Link>
-            </Button>
-            <Button variant="outline" onClick={handleSignOut}>
-              <LogOut aria-hidden="true" />
-              Sign out
-            </Button>
+            <div className="flex shrink-0 gap-2">
+              <Button asChild variant="outline" size="icon" aria-label="Settings">
+                <Link to="/settings">
+                  <Settings aria-hidden="true" />
+                </Link>
+              </Button>
+              <Button variant="outline" size="icon" onClick={handleSignOut} aria-label="Sign out">
+                <LogOut aria-hidden="true" />
+              </Button>
+            </div>
           </div>
         </header>
 
@@ -255,68 +304,147 @@ function DashboardPage() {
           </div>
         )}
 
-        <Card className="border-border bg-card/95 shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-xl">Add a child</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form
-              className="flex flex-col gap-3 sm:flex-row sm:items-end"
-              onSubmit={handleAddChild}
-            >
-              <div className="flex-1 space-y-2">
-                <Label htmlFor="child-name">Child name</Label>
+        <section className="rounded-2xl border border-border bg-card px-5 py-5 shadow-sm sm:px-6 sm:py-6">
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+            <div className="max-w-xl space-y-3">
+              <Badge variant="secondary" className="w-fit">
+                <Sparkles aria-hidden="true" className="mr-1 size-3" />
+                {children.length} {children.length === 1 ? "child" : "children"}
+              </Badge>
+              <div>
+                <h2 className="text-3xl font-semibold tracking-normal text-primary sm:text-5xl">
+                  Turn missed treats into future treats.
+                </h2>
+                <p className="mt-3 text-sm text-muted-foreground sm:text-base">
+                  Track balances, redeem rewards, and keep each child's journey easy to manage.
+                </p>
+              </div>
+            </div>
+
+            <form className="w-full space-y-2 sm:max-w-xs" onSubmit={handleAddChild}>
+              <Label htmlFor="child-name">Add a child</Label>
+              <div className="flex gap-2">
                 <Input
                   id="child-name"
                   value={childName}
                   onChange={(e) => setChildName(e.target.value)}
                   placeholder="Name"
                   autoComplete="off"
+                  className="bg-background"
                 />
+                <Button type="submit" disabled={addingChild || !childName.trim()} size="icon">
+                  <Plus aria-hidden="true" />
+                  <span className="sr-only">{addingChild ? "Adding child" : "Add child"}</span>
+                </Button>
               </div>
-              <Button type="submit" disabled={addingChild || !childName.trim()}>
-                <Plus aria-hidden="true" />
-                {addingChild ? "Adding…" : "Add child"}
-              </Button>
             </form>
-          </CardContent>
-        </Card>
+          </div>
+        </section>
 
-        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {children.map((child) => (
-            <Link
-              key={child.id}
-              to="/children/$childId"
-              params={{ childId: child.id }}
-              className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <Card className="h-full border-border bg-card shadow-sm transition-colors hover:border-primary/35 hover:bg-secondary/15 hover:shadow-md">
-                <CardContent className="space-y-5 p-5">
-                  <div className="flex items-center gap-3">
-                    <div className="flex size-12 items-center justify-center rounded-full bg-sunshine text-2xl text-sunshine-foreground shadow-sm">
-                      {child.avatar_icon ?? "⭐"}
+        {children.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-secondary/50 bg-secondary/15 px-4 py-10 text-center">
+            <p className="font-semibold text-foreground">No children yet</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Add the first child above to start tracking points.
+            </p>
+          </div>
+        ) : (
+          <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {children.map((child) => (
+              <Card
+                key={child.id}
+                className="border-border bg-card shadow-sm transition-colors hover:border-primary/35 hover:shadow-md"
+              >
+                <CardContent className="space-y-4 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-sunshine text-2xl text-sunshine-foreground shadow-sm">
+                        {child.avatar_icon ?? "⭐"}
+                      </div>
+                      <div className="min-w-0">
+                        <h2 className="truncate text-lg font-semibold text-foreground">
+                          {child.name}
+                        </h2>
+                        <p className="text-sm text-muted-foreground">
+                          {child.total_rewards_redeemed} redeemed
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h2 className="text-lg font-semibold text-foreground">{child.name}</h2>
-                      <p className="text-sm text-muted-foreground">{family.point_name}</p>
-                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="text-muted-foreground hover:text-destructive"
+                      onClick={() => setChildToRemove(child)}
+                      aria-label={`Remove ${child.name}`}
+                    >
+                      <Trash2 aria-hidden="true" />
+                    </Button>
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Current balance</p>
-                    <p className="text-3xl font-semibold text-primary">
-                      {child.current_balance} {family.point_name}
+
+                  <div className="rounded-xl bg-background/70 p-4">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Balance
                     </p>
+                    <p className="mt-1 text-3xl font-semibold text-primary">
+                      {child.current_balance}
+                    </p>
+                    <p className="text-sm text-muted-foreground">{family.point_name}</p>
                   </div>
-                  <div className="flex items-center gap-2 text-sm font-medium text-primary">
-                    <UserRound aria-hidden="true" className="size-4" />
-                    Open child home
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button asChild className="col-span-2">
+                      <Link to="/children/$childId" params={{ childId: child.id }}>
+                        <UserRound aria-hidden="true" />
+                        Open
+                        <ArrowRight aria-hidden="true" />
+                      </Link>
+                    </Button>
+                    <Button asChild variant="secondary" size="sm">
+                      <Link to="/children/$childId/add-points" params={{ childId: child.id }}>
+                        Add points
+                      </Link>
+                    </Button>
+                    <Button asChild variant="secondary" size="sm">
+                      <Link to="/children/$childId/rewards" params={{ childId: child.id }}>
+                        Rewards
+                      </Link>
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
-            </Link>
-          ))}
-        </section>
+            ))}
+          </section>
+        )}
       </main>
+
+      <AlertDialog
+        open={Boolean(childToRemove)}
+        onOpenChange={(open) => !open && !removingChild && setChildToRemove(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove {childToRemove?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes the child profile, unlocked badges, and activity history. This cannot be
+              undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={removingChild}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={removingChild}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(event) => {
+                event.preventDefault();
+                void handleRemoveChild();
+              }}
+            >
+              {removingChild ? "Removing…" : "Remove child"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

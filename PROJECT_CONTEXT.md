@@ -12,7 +12,8 @@ project. Read this before making changes.
   points for rewards.
 - Current implementation supports auth, family bootstrap, child profiles, child home, adding
   points, reward creation/redemption, Journey, First Points badge unlock, Activity History, Admin
-  Settings, a brighter visual palette, and Admin Settings test tools.
+  Settings, child removal from the dashboard, a brighter/mobile-first visual palette, and Admin
+  Settings test tools.
 - Recent committed work fixed the Admin Settings "Reset badges" test tool by adding the missing
   `child_badges` DELETE RLS policy and clearing pending local badge celebration state after reset.
 - Latest committed work adds a Test child picker to Admin Settings test tools so sample actions,
@@ -172,7 +173,12 @@ project. Read this before making changes.
 - Badges are hidden except for the lightweight First Points unlock message and Activity History
   badge display.
 - Rewards and Journey are live actions on the child home screen.
+- Dashboard has mobile-first child cards with quick actions and a destructive child removal
+  confirmation. Removal attempts to delete the child's badges and transactions before deleting the
+  child row, using normal RLS-protected frontend calls.
 - Admin Settings are intentionally local-first for now.
+- Settings is organized into Family, Points, and Tools tabs. Family name and point label update the
+  existing `families` row; point rules remain localStorage-backed for now.
 - Avoid medical language.
 - No photos, streaks, leaderboards, notifications, or allergy-management features in the current
   product direction.
