@@ -12,7 +12,7 @@ project. Read this before making changes.
   points for rewards.
 - Current implementation supports auth, family bootstrap, child profiles, child home, adding
   points, reward creation/redemption, Journey, First Points badge unlock, Activity History, Admin
-  Settings, child removal from the dashboard, a teal/mint mobile-first visual palette, and Admin
+  Settings, child removal from the dashboard, a blue mobile-first visual palette, and Admin
   Settings test tools.
 - Current uncommitted settings work completes the Admin Settings child profile and reward
   management sections:
@@ -299,7 +299,9 @@ project. Read this before making changes.
     redemption total.
   - Saves `name`, `avatar_icon`, and `avatar_colour` updates through the existing family-member
     child update policy.
-  - Uses fixed avatar colour choices: `soft-yellow`, `mint`, `sky`, `pink`, and `lavender`.
+  - Uses fixed avatar colour choices: `ocean`, `sky`, `violet`, `coral`, `amber`, `leaf`, and
+    `soft-yellow`.
+  - Older saved `mint`, `pink`, and `lavender` values are still mapped to high-contrast swatches.
 
 ### Journey
 
