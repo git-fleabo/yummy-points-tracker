@@ -12,7 +12,7 @@ project. Read this before making changes.
   points for rewards.
 - Current implementation supports auth, family bootstrap, child profiles, child home, adding
   points, reward creation/redemption, Journey, First Points badge unlock, Activity History, Admin
-  Settings, child removal from the dashboard, a brighter/mobile-first visual palette, and Admin
+  Settings, child removal from the dashboard, a teal/mint mobile-first visual palette, and Admin
   Settings test tools.
 - Recent committed work fixed the Admin Settings "Reset badges" test tool by adding the missing
   `child_badges` DELETE RLS policy and clearing pending local badge celebration state after reset.
