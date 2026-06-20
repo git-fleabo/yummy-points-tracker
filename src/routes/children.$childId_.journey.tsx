@@ -78,7 +78,7 @@ function JourneyPage() {
       const [loadedTransactions, loadedBadges, loadedRewards] = await Promise.all([
         loadTransactions(loadedChild.id, loadedFamily.id),
         loadBadges(loadedChild.id),
-        loadRewards(loadedFamily.id),
+        loadRewards(loadedFamily.id, loadedChild.id),
       ]);
 
       if (isMounted) {
@@ -398,12 +398,13 @@ async function loadBadges(childId: string) {
   return extractBadges((loadedBadges ?? []) as ChildBadge[]);
 }
 
-async function loadRewards(familyId: string) {
+async function loadRewards(familyId: string, childId: string) {
   const { data: loadedRewards, error: rewardsError } = await supabase
     .from("reward_templates")
     .select("id, name, point_cost")
     .eq("family_id", familyId)
     .eq("is_active", true)
+    .or(`child_id.is.null,child_id.eq.${childId}`)
     .order("point_cost", { ascending: true });
 
   if (rewardsError) throw rewardsError;

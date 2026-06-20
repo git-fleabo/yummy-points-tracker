@@ -14,6 +14,15 @@ project. Read this before making changes.
   points, reward creation/redemption, Journey, First Points badge unlock, Activity History, Admin
   Settings, child removal from the dashboard, a blue mobile-first visual palette, and Admin
   Settings test tools.
+- Sprint 5A Reward Scope is in progress/completed locally:
+  - Rewards can be family-wide or scoped to one child.
+  - `reward_templates.child_id = null` means the reward is available to the whole family.
+  - `reward_templates.child_id = <child id>` means the reward appears only for that child.
+  - Existing rewards continue to work as family-wide rewards because `child_id` is nullable.
+  - Rewards and Journey filter active rewards to family-wide rewards plus rewards scoped to the
+    selected child.
+  - The Rewards create form defaults to "Whole family" and can save "This child only".
+  - Reward cards are labelled "Family reward" or `Just for <child name>`.
 - Sprint 4 Rewards is in progress/completed locally:
   - `/children/$childId/rewards` completes the first full points loop: earn points, save points,
     redeem a reward.
@@ -49,6 +58,8 @@ project. Read this before making changes.
   the family.
 - Expected clean working tree after current handoff commit.
 - Live Supabase migration added this iteration:
+  - `add_reward_template_child_scope`
+  - `enforce_reward_template_child_scope_family`
   - `allow_family_members_delete_child_badges`
 - Root cause of the failed badge reset:
   - The frontend delete query targeted the correct `child_badges` table and filtered by the current
@@ -297,6 +308,14 @@ project. Read this before making changes.
 
 - Rewards lives at `/children/$childId/rewards`.
 - Parents can add active family reward templates using `reward_templates`.
+- Sprint 5A reward scope:
+  - The create form asks "Who can use this reward?"
+  - "Whole family" saves `reward_templates.child_id = null`.
+  - "This child only" saves `reward_templates.child_id = current child id`.
+  - The page loads only active family rewards where `child_id is null` or `child_id` matches the
+    selected child.
+  - Reward cards show either "Family reward" or `Just for <child name>`.
+  - The existing redemption transaction behavior is unchanged.
 - Sprint 4 Rewards route behavior:
   - Loads the current Supabase session and redirects signed-out users to `/login`.
   - Loads the selected child through `loadChildForUser()`, which confirms the child belongs to a
@@ -588,11 +607,14 @@ Source: Supabase MCP reads on 2026-06-16 for project `tbosqyedogluzcpzodwe`.
 - RLS enabled.
 - Purpose: future rewards catalog.
 - Current app use:
-  - Not yet used by the frontend.
-  - Child home has disabled Rewards/Journey actions.
+  - Rewards lists active family-wide rewards and active rewards scoped to the selected child.
+  - Rewards inserts active family-wide or child-specific rewards.
+  - Journey uses scoped reward visibility for next-reward progress.
+  - Admin Settings can create/edit/hide active family-wide rewards.
 - Columns:
   - `id uuid primary key default gen_random_uuid()`
   - `family_id uuid not null references families(id)`
+  - `child_id uuid null references children(id) on delete cascade`
   - `name text not null`
   - `point_cost integer not null`
   - `is_active boolean not null default true`
@@ -602,10 +624,13 @@ Source: Supabase MCP reads on 2026-06-16 for project `tbosqyedogluzcpzodwe`.
   - `point_cost > 0`
 - Foreign keys from:
   - `transactions.reward_template_id`
+  - `children.id` through nullable `reward_templates.child_id`
 - Triggers:
   - `set_reward_templates_updated_at` before update executes `set_updated_at()`.
 - RLS policies:
   - Family members can create, view, update, and delete rewards for their family.
+  - INSERT and UPDATE policies also require any non-null `child_id` to belong to the same
+    `family_id` as the reward.
 
 #### `public.transactions`
 

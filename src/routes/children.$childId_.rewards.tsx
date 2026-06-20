@@ -14,6 +14,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { getErrorMessage, loadChildForUser, type Child, type Family } from "@/lib/family-data";
 
@@ -27,7 +34,10 @@ type RewardTemplate = {
   name: string;
   point_cost: number;
   is_active: boolean;
+  child_id: string | null;
 };
+
+type RewardScope = "family" | "child";
 
 type RewardStatus = {
   redeemed: boolean;
@@ -48,6 +58,7 @@ function RewardsPage() {
   const [rewards, setRewards] = useState<RewardTemplate[]>([]);
   const [rewardName, setRewardName] = useState("");
   const [rewardCost, setRewardCost] = useState("");
+  const [rewardScope, setRewardScope] = useState<RewardScope>("family");
   const [selectedReward, setSelectedReward] = useState<RewardTemplate | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -74,7 +85,7 @@ function RewardsPage() {
       }
 
       const { child: loadedChild, family: loadedFamily } = await loadChildForUser(childId, user.id);
-      const loadedRewards = await loadFamilyRewards(loadedFamily.id);
+      const loadedRewards = await loadFamilyRewards(loadedFamily.id, loadedChild.id);
 
       if (isMounted) {
         setRewardStatus(readRewardStatus(childId));
@@ -116,8 +127,9 @@ function RewardsPage() {
         name: trimmedName,
         point_cost: cost,
         is_active: true,
+        child_id: rewardScope === "child" ? child.id : null,
       })
-      .select("id, name, point_cost, is_active")
+      .select("id, name, point_cost, is_active, child_id")
       .single<RewardTemplate>();
 
     setSaving(false);
@@ -130,6 +142,7 @@ function RewardsPage() {
     setRewards((currentRewards) => [...currentRewards, createdReward].sort(sortRewards));
     setRewardName("");
     setRewardCost("");
+    setRewardScope("family");
   }
 
   async function handleRedeemReward() {
@@ -163,7 +176,7 @@ function RewardsPage() {
 
       if (childError) throw childError;
 
-      const refreshedRewards = await loadFamilyRewards(family.id);
+      const refreshedRewards = await loadFamilyRewards(family.id, child.id);
       saveRewardStatus(child.id, { redeemed: true, firstRewardUnlocked });
       setChild(updatedChild);
       setRewards(refreshedRewards);
@@ -251,7 +264,10 @@ function RewardsPage() {
               </div>
             )}
 
-            <form className="grid gap-3 sm:grid-cols-[1fr_9rem_auto]" onSubmit={handleCreateReward}>
+            <form
+              className="grid gap-3 sm:grid-cols-[1fr_9rem_13rem_auto]"
+              onSubmit={handleCreateReward}
+            >
               <div className="space-y-2">
                 <Label htmlFor="reward-name">Reward</Label>
                 <Input
@@ -273,6 +289,21 @@ function RewardsPage() {
                   onChange={(e) => setRewardCost(e.target.value)}
                   placeholder="10"
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="reward-scope">Who can use this reward?</Label>
+                <Select
+                  value={rewardScope}
+                  onValueChange={(value) => setRewardScope(value as RewardScope)}
+                >
+                  <SelectTrigger id="reward-scope" className="bg-card">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="family">Whole family</SelectItem>
+                    <SelectItem value="child">This child only</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <Button
                 type="submit"
@@ -387,6 +418,9 @@ function RewardSection({
                     <p className="text-sm text-muted-foreground">
                       {reward.point_cost} {family.point_name}
                     </p>
+                    <p className="mt-1 text-xs font-semibold text-primary">
+                      {getRewardScopeLabel(reward, child)}
+                    </p>
                   </div>
                   <Badge variant={canAfford ? "default" : "secondary"}>
                     {canAfford ? "Ready" : `${pointsNeeded} more`}
@@ -412,17 +446,22 @@ function RewardSection({
   );
 }
 
-async function loadFamilyRewards(familyId: string) {
+async function loadFamilyRewards(familyId: string, childId: string) {
   const { data: loadedRewards, error: rewardsError } = await supabase
     .from("reward_templates")
-    .select("id, name, point_cost, is_active")
+    .select("id, name, point_cost, is_active, child_id")
     .eq("family_id", familyId)
     .eq("is_active", true)
+    .or(`child_id.is.null,child_id.eq.${childId}`)
     .order("point_cost", { ascending: true })
     .order("created_at", { ascending: true });
 
   if (rewardsError) throw rewardsError;
   return ((loadedRewards ?? []) as RewardTemplate[]).sort(sortRewards);
+}
+
+function getRewardScopeLabel(reward: RewardTemplate, child: Child) {
+  return reward.child_id ? `Just for ${child.name}` : "Family reward";
 }
 
 async function awardFirstRewardBadgeIfNeeded(childId: string) {
