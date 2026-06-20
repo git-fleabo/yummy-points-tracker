@@ -68,6 +68,7 @@ function SettingsPage() {
   const [family, setFamily] = useState<TestFamily | null>(null);
   const [familyName, setFamilyName] = useState("");
   const [pointName, setPointName] = useState("");
+  const [signedInEmail, setSignedInEmail] = useState("");
   const [children, setChildren] = useState<TestChild[]>([]);
   const [selectedTestChildId, setSelectedTestChildId] = useState("");
   const [loading, setLoading] = useState(true);
@@ -96,6 +97,7 @@ function SettingsPage() {
 
       if (isMounted) {
         setSettings(getAdminSettings());
+        setSignedInEmail(sessionData.session.user.email ?? "");
         setFamily(testData.family);
         setFamilyName(testData.family?.name ?? "");
         setPointName(testData.family?.point_name ?? "");
@@ -436,6 +438,23 @@ function SettingsPage() {
           </TabsList>
 
           <TabsContent value="family" className="space-y-4">
+            <Card className="border-border bg-card shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-2xl text-foreground">Account</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  The email currently signed in on this device.
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="rounded-lg border border-secondary/40 bg-secondary/10 px-4 py-3">
+                  <p className="text-sm font-medium text-muted-foreground">Signed in as</p>
+                  <p className="mt-1 break-all text-lg font-semibold text-foreground">
+                    {signedInEmail || "Email unavailable"}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
             <Card className="border-border bg-card shadow-sm">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-2xl text-foreground">
