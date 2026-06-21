@@ -105,10 +105,22 @@ project. Read this before making changes.
     `public.child_badges`.
   - Supabase live policy readback confirms `Family members can delete transactions` exists on
     `public.transactions`.
-  - Rollback Supabase RLS test as an authenticated family member for selected child Miller confirmed
-    the Admin Settings cleanup sequence can delete that child's transactions, delete that child's
-    badges, and reset that child's balance to 0; the test transaction was rolled back so live data
-    stayed unchanged.
+  - Fresh rollback Supabase RLS test on 2026-06-21 as an authenticated family member for selected
+    child Miller confirmed:
+    - Admin Settings Clear Activity History deletes that child's transaction history.
+    - Admin Settings Reset all test data can delete that child's transactions, delete that child's
+      badges, and reset that child's balance to 0.
+    - The test transaction was rolled back so live data stayed unchanged.
+  - Fresh negative RLS test on 2026-06-21 as an authenticated non-member returned
+    `deleted_by_authenticated_non_member = 0`, confirming transaction deletion is not open across
+    families.
+  - The policy added for this remains
+    `Family members can delete transactions` in
+    `supabase/20260621120000_allow_family_members_delete_transactions.sql`; no additional policy was
+    needed during the fresh verification pass.
+  - Files changed for the transaction cleanup verification:
+    - `supabase/20260621120000_allow_family_members_delete_transactions.sql`
+    - `PROJECT_CONTEXT.md`
   - Supabase migration list shows `20260618165815_allow_family_members_delete_child_badges`.
   - Full `npm run lint` currently fails on pre-existing formatting issues in unrelated files:
     `src/routes/__root.tsx`, `src/routes/login.tsx`, and `src/routes/signup.tsx`, plus existing
