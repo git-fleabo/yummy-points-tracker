@@ -40,8 +40,9 @@ project. Read this before making changes.
   - Creating a reward inserts `family_id`, `name`, `point_cost`, and `is_active = true`.
   - Redeeming a reward creates a negative `reward_redeemed` transaction with
     `reward_template_id` and `note = reward name`.
-  - After redemption, the page refreshes the child balance and rewards list, then shows
-    `🎁 Reward redeemed!`.
+  - After redemption, the page refreshes the child balance and rewards list, then shows a success
+    panel with the redeemed reward name, points spent, animated celebration icon, and updated
+    balance.
   - First successful reward redemption checks for the `First Reward` badge, inserts a
     `child_badges` row if missing, and shows `🎁 First Reward unlocked!` once using
     `sessionStorage`.
@@ -68,6 +69,19 @@ project. Read this before making changes.
   the family.
 - Latest RLS fix verified Admin Settings Clear Activity History and Reset all test data by adding
   the missing narrow `transactions` DELETE RLS policy.
+- Latest local work polishes Reward Redemption:
+  - Rewards now shows a clearer success panel with a small animated celebration icon, the redeemed
+    reward name, points spent, and the updated balance immediately after redemption.
+  - Rewards now shows a "Redeemed rewards" history panel for the selected child with reward name,
+    points spent, date redeemed, and child name.
+  - Rewards explicitly blocks stale/invalid redemption attempts if the selected child's current
+    balance is below the selected reward cost.
+  - Existing transaction insert logic, points trigger behavior, badge unlock behavior, Journey, and
+    Activity History logic were not changed.
+  - Files changed:
+    - `src/routes/children.$childId_.rewards.tsx`
+    - `PROJECT_CONTEXT.md`
+  - Schema/RLS changes: none.
 - Expected clean working tree after current handoff commit.
 - Live Supabase migration added this iteration:
   - `add_reward_template_child_scope`
@@ -353,6 +367,9 @@ project. Read this before making changes.
   - Keeps the lightweight add-reward form.
   - Separates active rewards into "Available now" and "Saving towards".
   - Locked rewards show how many more points the child needs.
+  - The redeem dialog button is disabled if the child cannot afford the selected reward, and
+    `handleRedeemReward()` also guards against a stale selected reward whose cost is higher than
+    the child's current loaded balance.
   - Empty states use:
     - `"No rewards yet. Create one above."`
     - `"No rewards available yet."`
@@ -364,7 +381,14 @@ project. Read this before making changes.
     - `note = reward name`
   - The existing database trigger applies the negative point change and increments
     `children.total_rewards_redeemed`.
-  - After redemption, Rewards reloads the child and active reward list and shows a success message.
+  - After redemption, Rewards reloads the child, active reward list, and recent redeemed reward
+    history, then shows the updated balance immediately.
+  - Rewards reads the selected child's latest five `reward_redeemed` transactions for a simple
+    "Redeemed rewards" panel:
+    - Reward name comes from `transactions.note`.
+    - Points spent is `abs(transactions.points_change)`.
+    - Date redeemed comes from `transactions.created_at`.
+    - The selected child's name is shown in each redeemed history row.
   - First successful redemption checks `badges.name = "First Reward"`, avoids duplicate
     `child_badges` rows, inserts the badge when needed, and shows a one-time unlock message using
     `sessionStorage`.
