@@ -478,7 +478,7 @@ project. Read this before making changes.
 - Assumptions made:
   - The existing database trigger remains responsible for increasing `children.current_balance`
     after a `transactions` insert.
-  - The app currently has only one implemented badge flow: First Points.
+  - The app currently supports two implemented badge flows: First Points and First Reward.
   - The `badges.icon` value is safe to display as a short visual label; if it is missing, the UI
     falls back to a Lucide badge icon.
   - If the selected child already has First Points, the badge sample button should show an error
@@ -752,6 +752,16 @@ Source: Supabase MCP reads on 2026-06-16 for project `tbosqyedogluzcpzodwe`.
 - The Add Points route file uses TanStack's `children.$childId_.add-points.tsx` separate-screen
   route pattern so `/children/$childId/add-points` is not nested under child home.
 - The Activity History route follows the same separate-screen pattern.
+- Badges Gallery was added as `/children/$childId/badges` using the same separate-screen route
+  pattern in `src/routes/children.$childId_.badges.tsx`.
+- Badges Gallery data sources:
+  - `loadChildForUser(childId, user.id)` for child/family authorization and display data.
+  - `badges` filtered to the supported names `First Points` and `First Reward`.
+  - `child_badges` joined to `badges(id, name, description, icon)` for earned status and
+    `earned_at`.
+- Badges Gallery is read-only and makes no points, rewards, transaction, or badge-unlock logic
+  changes.
+- No schema changes were made for Badges Gallery.
 - Do not remove `<Outlet />` from `src/routes/__root.tsx`; nested routes depend on it.
 - Do not duplicate plugins already included by `@lovable.dev/vite-tanstack-config` in
   `vite.config.ts`.

@@ -18,6 +18,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ChildrenChildIdRouteImport } from './routes/children.$childId'
 import { Route as ChildrenChildIdRewardsRouteImport } from './routes/children.$childId_.rewards'
 import { Route as ChildrenChildIdJourneyRouteImport } from './routes/children.$childId_.journey'
+import { Route as ChildrenChildIdBadgesRouteImport } from './routes/children.$childId_.badges'
 import { Route as ChildrenChildIdAddPointsRouteImport } from './routes/children.$childId_.add-points'
 import { Route as ChildrenChildIdActivityHistoryRouteImport } from './routes/children.$childId_.activity-history'
 
@@ -66,6 +67,11 @@ const ChildrenChildIdJourneyRoute = ChildrenChildIdJourneyRouteImport.update({
   path: '/children/$childId/journey',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ChildrenChildIdBadgesRoute = ChildrenChildIdBadgesRouteImport.update({
+  id: '/children/$childId_/badges',
+  path: '/children/$childId/badges',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ChildrenChildIdAddPointsRoute =
   ChildrenChildIdAddPointsRouteImport.update({
     id: '/children/$childId_/add-points',
@@ -89,6 +95,7 @@ export interface FileRoutesByFullPath {
   '/children/$childId': typeof ChildrenChildIdRoute
   '/children/$childId/activity-history': typeof ChildrenChildIdActivityHistoryRoute
   '/children/$childId/add-points': typeof ChildrenChildIdAddPointsRoute
+  '/children/$childId/badges': typeof ChildrenChildIdBadgesRoute
   '/children/$childId/journey': typeof ChildrenChildIdJourneyRoute
   '/children/$childId/rewards': typeof ChildrenChildIdRewardsRoute
 }
@@ -102,6 +109,7 @@ export interface FileRoutesByTo {
   '/children/$childId': typeof ChildrenChildIdRoute
   '/children/$childId/activity-history': typeof ChildrenChildIdActivityHistoryRoute
   '/children/$childId/add-points': typeof ChildrenChildIdAddPointsRoute
+  '/children/$childId/badges': typeof ChildrenChildIdBadgesRoute
   '/children/$childId/journey': typeof ChildrenChildIdJourneyRoute
   '/children/$childId/rewards': typeof ChildrenChildIdRewardsRoute
 }
@@ -116,6 +124,7 @@ export interface FileRoutesById {
   '/children/$childId': typeof ChildrenChildIdRoute
   '/children/$childId_/activity-history': typeof ChildrenChildIdActivityHistoryRoute
   '/children/$childId_/add-points': typeof ChildrenChildIdAddPointsRoute
+  '/children/$childId_/badges': typeof ChildrenChildIdBadgesRoute
   '/children/$childId_/journey': typeof ChildrenChildIdJourneyRoute
   '/children/$childId_/rewards': typeof ChildrenChildIdRewardsRoute
 }
@@ -131,6 +140,7 @@ export interface FileRouteTypes {
     | '/children/$childId'
     | '/children/$childId/activity-history'
     | '/children/$childId/add-points'
+    | '/children/$childId/badges'
     | '/children/$childId/journey'
     | '/children/$childId/rewards'
   fileRoutesByTo: FileRoutesByTo
@@ -144,6 +154,7 @@ export interface FileRouteTypes {
     | '/children/$childId'
     | '/children/$childId/activity-history'
     | '/children/$childId/add-points'
+    | '/children/$childId/badges'
     | '/children/$childId/journey'
     | '/children/$childId/rewards'
   id:
@@ -157,6 +168,7 @@ export interface FileRouteTypes {
     | '/children/$childId'
     | '/children/$childId_/activity-history'
     | '/children/$childId_/add-points'
+    | '/children/$childId_/badges'
     | '/children/$childId_/journey'
     | '/children/$childId_/rewards'
   fileRoutesById: FileRoutesById
@@ -171,6 +183,7 @@ export interface RootRouteChildren {
   ChildrenChildIdRoute: typeof ChildrenChildIdRoute
   ChildrenChildIdActivityHistoryRoute: typeof ChildrenChildIdActivityHistoryRoute
   ChildrenChildIdAddPointsRoute: typeof ChildrenChildIdAddPointsRoute
+  ChildrenChildIdBadgesRoute: typeof ChildrenChildIdBadgesRoute
   ChildrenChildIdJourneyRoute: typeof ChildrenChildIdJourneyRoute
   ChildrenChildIdRewardsRoute: typeof ChildrenChildIdRewardsRoute
 }
@@ -240,6 +253,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ChildrenChildIdJourneyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/children/$childId_/badges': {
+      id: '/children/$childId_/badges'
+      path: '/children/$childId/badges'
+      fullPath: '/children/$childId/badges'
+      preLoaderRoute: typeof ChildrenChildIdBadgesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/children/$childId_/add-points': {
       id: '/children/$childId_/add-points'
       path: '/children/$childId/add-points'
@@ -267,6 +287,7 @@ const rootRouteChildren: RootRouteChildren = {
   ChildrenChildIdRoute: ChildrenChildIdRoute,
   ChildrenChildIdActivityHistoryRoute: ChildrenChildIdActivityHistoryRoute,
   ChildrenChildIdAddPointsRoute: ChildrenChildIdAddPointsRoute,
+  ChildrenChildIdBadgesRoute: ChildrenChildIdBadgesRoute,
   ChildrenChildIdJourneyRoute: ChildrenChildIdJourneyRoute,
   ChildrenChildIdRewardsRoute: ChildrenChildIdRewardsRoute,
 }
