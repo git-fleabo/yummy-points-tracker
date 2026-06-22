@@ -128,6 +128,19 @@ project. Read this before making changes.
     - `npm run build` passes.
     - `npm run lint` passes with existing Fast Refresh warnings in shared UI component exports.
     - `git diff --check` passes.
+- Latest local work adds the app icon tile motif to the signed-in family dashboard:
+  - A small decorative three-tile stack appears in the dashboard hero card on medium and larger
+    screens.
+  - The mark uses the existing accent, primary, and secondary palette and is hidden on smaller
+    screens to avoid distracting from the Add child controls.
+  - Files changed:
+    - `src/routes/dashboard.tsx`
+    - `PROJECT_CONTEXT.md`
+  - Schema/RLS changes: none.
+  - Verification:
+    - `npm run build` passes.
+    - `npm run lint` passes with existing Fast Refresh warnings in shared UI component exports.
+    - `git diff --check` passes.
 - Expected clean working tree after current handoff commit.
 - Live Supabase migration added this iteration:
   - `add_reward_template_child_scope`

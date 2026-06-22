@@ -47,6 +47,18 @@ const defaultFamilyName = "My Family";
 const defaultPointName = "Yummy Points";
 const dashboardBuildMarker = "visual-refresh-89e9d78";
 
+function BrandTileStack() {
+  return (
+    <div aria-hidden="true" className="relative hidden h-24 w-36 shrink-0 rotate-[-8deg] md:block">
+      <div className="absolute left-0 top-10 h-16 w-28 rounded-[1.4rem] bg-secondary shadow-lg shadow-secondary/20" />
+      <div className="absolute left-4 top-5 h-16 w-28 rounded-[1.4rem] bg-primary shadow-lg shadow-primary/20" />
+      <div className="absolute left-8 top-0 h-16 w-28 rounded-[1.4rem] bg-accent shadow-lg shadow-accent/25">
+        <div className="absolute inset-x-3 top-2 h-px rounded-full bg-white/70" />
+      </div>
+    </div>
+  );
+}
+
 function getErrorMessage(err: unknown) {
   if (err instanceof Error) return err.message;
   if (err && typeof err === "object" && "message" in err) {
@@ -323,23 +335,26 @@ function DashboardPage() {
               </div>
             </div>
 
-            <form className="w-full space-y-2 sm:max-w-xs" onSubmit={handleAddChild}>
-              <Label htmlFor="child-name">Add a child</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="child-name"
-                  value={childName}
-                  onChange={(e) => setChildName(e.target.value)}
-                  placeholder="Name"
-                  autoComplete="off"
-                  className="bg-background"
-                />
-                <Button type="submit" disabled={addingChild || !childName.trim()} size="icon">
-                  <Plus aria-hidden="true" />
-                  <span className="sr-only">{addingChild ? "Adding child" : "Add child"}</span>
-                </Button>
-              </div>
-            </form>
+            <div className="flex w-full flex-col items-end gap-4 sm:max-w-xs">
+              <BrandTileStack />
+              <form className="w-full space-y-2" onSubmit={handleAddChild}>
+                <Label htmlFor="child-name">Add a child</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="child-name"
+                    value={childName}
+                    onChange={(e) => setChildName(e.target.value)}
+                    placeholder="Name"
+                    autoComplete="off"
+                    className="bg-background"
+                  />
+                  <Button type="submit" disabled={addingChild || !childName.trim()} size="icon">
+                    <Plus aria-hidden="true" />
+                    <span className="sr-only">{addingChild ? "Adding child" : "Add child"}</span>
+                  </Button>
+                </div>
+              </form>
+            </div>
           </div>
         </section>
 
