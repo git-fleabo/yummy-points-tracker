@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+import { awardEligibleBadges } from "@/lib/badge-engine";
 import { getErrorMessage, loadChildForUser, type Child, type Family } from "@/lib/family-data";
 
 export const Route = createFileRoute("/children/$childId_/rewards")({
@@ -35,6 +36,7 @@ type RewardTemplate = {
   point_cost: number;
   is_active: boolean;
   child_id: string | null;
+  reward_template_child_targets?: { child_id: string }[];
 };
 
 type RewardScope = "family" | "child";
@@ -45,12 +47,6 @@ type RewardStatus = {
   rewardName: string | null;
   pointsSpent: number | null;
   updatedBalance: number | null;
-};
-
-type RewardBadge = {
-  id: string;
-  name: string;
-  icon: string | null;
 };
 
 type RedeemedReward = {
@@ -194,7 +190,16 @@ function RewardsPage() {
 
       if (transactionError) throw transactionError;
 
-      const firstRewardUnlocked = await awardFirstRewardBadgeIfNeeded(child.id);
+      const earnedBadges = await awardEligibleBadges({ familyId: family.id, childId: child.id });
+      const firstRewardUnlocked = earnedBadges.some((badge) => badge.name === "First Reward");
+      const firstEarnedBadge = earnedBadges[0] ?? null;
+
+      if (firstEarnedBadge && typeof window !== "undefined") {
+        window.sessionStorage.setItem(
+          `badge-unlocked-${child.id}`,
+          JSON.stringify(firstEarnedBadge),
+        );
+      }
 
       const { data: updatedChild, error: childError } = await supabase
         .from("children")
@@ -566,15 +571,16 @@ function RewardSection({
 async function loadFamilyRewards(familyId: string, childId: string) {
   const { data: loadedRewards, error: rewardsError } = await supabase
     .from("reward_templates")
-    .select("id, name, point_cost, is_active, child_id")
+    .select("id, name, point_cost, is_active, child_id, reward_template_child_targets(child_id)")
     .eq("family_id", familyId)
     .eq("is_active", true)
-    .or(`child_id.is.null,child_id.eq.${childId}`)
     .order("point_cost", { ascending: true })
     .order("created_at", { ascending: true });
 
   if (rewardsError) throw rewardsError;
-  return ((loadedRewards ?? []) as RewardTemplate[]).sort(sortRewards);
+  return ((loadedRewards ?? []) as RewardTemplate[])
+    .filter((reward) => isRewardAvailableForChild(reward, childId))
+    .sort(sortRewards);
 }
 
 async function loadRedeemedRewards(familyId: string, childId: string) {
@@ -592,58 +598,20 @@ async function loadRedeemedRewards(familyId: string, childId: string) {
 }
 
 function getRewardScopeLabel(reward: RewardTemplate, child: Child) {
+  const targetedChildren = reward.reward_template_child_targets ?? [];
+  if (targetedChildren.length > 1) return "Selected children";
+  if (targetedChildren.some((target) => target.child_id === child.id))
+    return `Just for ${child.name}`;
   return reward.child_id ? `Just for ${child.name}` : "Family reward";
 }
 
-async function awardFirstRewardBadgeIfNeeded(childId: string) {
-  const { data: firstRewardBadge, error: badgeError } = await supabase
-    .from("badges")
-    .select("id, name, icon")
-    .eq("name", "First Reward")
-    .maybeSingle<RewardBadge>();
-
-  if (badgeError) {
-    console.error("Could not load First Reward badge.", badgeError);
-    return false;
+function isRewardAvailableForChild(reward: RewardTemplate, childId: string) {
+  const targetedChildren = reward.reward_template_child_targets ?? [];
+  if (targetedChildren.length > 0) {
+    return targetedChildren.some((target) => target.child_id === childId);
   }
 
-  if (!firstRewardBadge) {
-    console.error('Could not find "First Reward" badge.');
-    return false;
-  }
-
-  const { data: existingChildBadge, error: existingBadgeError } = await supabase
-    .from("child_badges")
-    .select("id")
-    .eq("child_id", childId)
-    .eq("badge_id", firstRewardBadge.id)
-    .maybeSingle<{ id: string }>();
-
-  if (existingBadgeError) {
-    console.error("Could not check First Reward badge.", existingBadgeError);
-    return false;
-  }
-
-  if (existingChildBadge) return false;
-
-  const { error: childBadgeError } = await supabase.from("child_badges").insert({
-    child_id: childId,
-    badge_id: firstRewardBadge.id,
-  });
-
-  if (childBadgeError) {
-    console.error("Could not unlock First Reward badge.", childBadgeError);
-    return false;
-  }
-
-  if (typeof window !== "undefined") {
-    window.sessionStorage.setItem(
-      `badge-unlocked-${childId}`,
-      JSON.stringify({ name: firstRewardBadge.name, icon: firstRewardBadge.icon }),
-    );
-  }
-
-  return true;
+  return !reward.child_id || reward.child_id === childId;
 }
 
 function saveRewardStatus(childId: string, status: RewardStatus) {

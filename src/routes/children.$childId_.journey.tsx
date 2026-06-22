@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, Gift, Sparkles } from "lucide-react";
+import { ArrowLeft, Award, Gift, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,12 @@ type Transaction = {
   reward_templates: RewardRelation;
 };
 
+type ChildBadge = {
+  id: string;
+  earned_at: string;
+  badges: { name: string; icon: string | null } | { name: string; icon: string | null }[] | null;
+};
+
 type TimelineItem = {
   id: string;
   title: string;
@@ -31,7 +37,7 @@ type TimelineItem = {
   note: string | null;
   date: string;
   variant: "default" | "secondary";
-  icon: typeof Sparkles | typeof Gift;
+  icon: typeof Sparkles | typeof Gift | typeof Award;
 };
 
 const longDateFormatter = new Intl.DateTimeFormat(undefined, {
@@ -46,6 +52,7 @@ function JourneyPage() {
   const [child, setChild] = useState<Child | null>(null);
   const [family, setFamily] = useState<Family | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [childBadges, setChildBadges] = useState<ChildBadge[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -66,11 +73,13 @@ function JourneyPage() {
 
       const { child: loadedChild, family: loadedFamily } = await loadChildForUser(childId, user.id);
       const loadedTransactions = await loadTransactions(loadedChild.id, loadedFamily.id);
+      const loadedBadges = await loadChildBadges(loadedChild.id);
 
       if (isMounted) {
         setChild(loadedChild);
         setFamily(loadedFamily);
         setTransactions(loadedTransactions);
+        setChildBadges(loadedBadges);
         setLoading(false);
       }
     }
@@ -118,7 +127,10 @@ function JourneyPage() {
     );
   }
 
-  const timeline = transactions.map((transaction) => buildTimelineItem(transaction, child, family));
+  const timeline = [
+    ...transactions.map((transaction) => buildTimelineItem(transaction, child, family)),
+    ...childBadges.flatMap((badge) => buildBadgeTimelineItem(badge, child)),
+  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   return (
     <div className="min-h-screen bg-background px-4 py-8 text-foreground sm:px-6 lg:px-8">
@@ -210,6 +222,17 @@ async function loadTransactions(childId: string, familyId: string) {
   return (loadedTransactions ?? []) as Transaction[];
 }
 
+async function loadChildBadges(childId: string) {
+  const { data: loadedBadges, error: badgesError } = await supabase
+    .from("child_badges")
+    .select("id, earned_at, badges(name, icon)")
+    .eq("child_id", childId)
+    .order("earned_at", { ascending: false });
+
+  if (badgesError) throw badgesError;
+  return (loadedBadges ?? []) as ChildBadge[];
+}
+
 function buildTimelineItem(transaction: Transaction, child: Child, family: Family): TimelineItem {
   if (transaction.type === "reward_redeemed") {
     const rewardName = getRewardName(transaction);
@@ -257,6 +280,23 @@ function getRewardName(transaction: Transaction) {
 
   const note = transaction.note?.replace(/^redeemed:\s*/i, "").trim();
   return note || null;
+}
+
+function buildBadgeTimelineItem(childBadge: ChildBadge, child: Child): TimelineItem[] {
+  const badge = [childBadge.badges ?? []].flat()[0];
+  if (!badge) return [];
+
+  return [
+    {
+      id: `badge-${childBadge.id}`,
+      title: `${child.name} unlocked ${badge.name}`,
+      detail: "Badge earned",
+      note: badge.icon ? badge.icon : null,
+      date: childBadge.earned_at,
+      variant: "default",
+      icon: Award,
+    },
+  ];
 }
 
 function formatPointChange(points: number, pointName: string) {

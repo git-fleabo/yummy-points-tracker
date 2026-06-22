@@ -15,6 +15,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SettingsBadgesRouteImport } from './routes/settings_.badges'
 import { Route as ChildrenChildIdRouteImport } from './routes/children.$childId'
 import { Route as ChildrenChildIdRewardsRouteImport } from './routes/children.$childId_.rewards'
 import { Route as ChildrenChildIdJourneyRouteImport } from './routes/children.$childId_.journey'
@@ -50,6 +51,11 @@ const DashboardRoute = DashboardRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsBadgesRoute = SettingsBadgesRouteImport.update({
+  id: '/settings_/badges',
+  path: '/settings/badges',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ChildrenChildIdRoute = ChildrenChildIdRouteImport.update({
@@ -93,6 +99,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
   '/children/$childId': typeof ChildrenChildIdRoute
+  '/settings/badges': typeof SettingsBadgesRoute
   '/children/$childId/activity-history': typeof ChildrenChildIdActivityHistoryRoute
   '/children/$childId/add-points': typeof ChildrenChildIdAddPointsRoute
   '/children/$childId/badges': typeof ChildrenChildIdBadgesRoute
@@ -107,6 +114,7 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
   '/children/$childId': typeof ChildrenChildIdRoute
+  '/settings/badges': typeof SettingsBadgesRoute
   '/children/$childId/activity-history': typeof ChildrenChildIdActivityHistoryRoute
   '/children/$childId/add-points': typeof ChildrenChildIdAddPointsRoute
   '/children/$childId/badges': typeof ChildrenChildIdBadgesRoute
@@ -122,6 +130,7 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
   '/children/$childId': typeof ChildrenChildIdRoute
+  '/settings_/badges': typeof SettingsBadgesRoute
   '/children/$childId_/activity-history': typeof ChildrenChildIdActivityHistoryRoute
   '/children/$childId_/add-points': typeof ChildrenChildIdAddPointsRoute
   '/children/$childId_/badges': typeof ChildrenChildIdBadgesRoute
@@ -138,6 +147,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/signup'
     | '/children/$childId'
+    | '/settings/badges'
     | '/children/$childId/activity-history'
     | '/children/$childId/add-points'
     | '/children/$childId/badges'
@@ -152,6 +162,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/signup'
     | '/children/$childId'
+    | '/settings/badges'
     | '/children/$childId/activity-history'
     | '/children/$childId/add-points'
     | '/children/$childId/badges'
@@ -166,6 +177,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/signup'
     | '/children/$childId'
+    | '/settings_/badges'
     | '/children/$childId_/activity-history'
     | '/children/$childId_/add-points'
     | '/children/$childId_/badges'
@@ -181,6 +193,7 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   SignupRoute: typeof SignupRoute
   ChildrenChildIdRoute: typeof ChildrenChildIdRoute
+  SettingsBadgesRoute: typeof SettingsBadgesRoute
   ChildrenChildIdActivityHistoryRoute: typeof ChildrenChildIdActivityHistoryRoute
   ChildrenChildIdAddPointsRoute: typeof ChildrenChildIdAddPointsRoute
   ChildrenChildIdBadgesRoute: typeof ChildrenChildIdBadgesRoute
@@ -230,6 +243,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings_/badges': {
+      id: '/settings_/badges'
+      path: '/settings/badges'
+      fullPath: '/settings/badges'
+      preLoaderRoute: typeof SettingsBadgesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/children/$childId': {
@@ -285,6 +305,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   SignupRoute: SignupRoute,
   ChildrenChildIdRoute: ChildrenChildIdRoute,
+  SettingsBadgesRoute: SettingsBadgesRoute,
   ChildrenChildIdActivityHistoryRoute: ChildrenChildIdActivityHistoryRoute,
   ChildrenChildIdAddPointsRoute: ChildrenChildIdAddPointsRoute,
   ChildrenChildIdBadgesRoute: ChildrenChildIdBadgesRoute,

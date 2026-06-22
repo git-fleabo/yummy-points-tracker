@@ -13,9 +13,11 @@ export const Route = createFileRoute("/children/$childId_/badges")({
 
 type BadgeDefinition = {
   id: string;
+  family_id: string | null;
   name: string;
   description: string | null;
   icon: string | null;
+  is_active: boolean;
 };
 
 type ChildBadge = {
@@ -29,26 +31,6 @@ type GalleryBadge = {
   description: string;
   icon: string | null;
   earnedAt: string | null;
-};
-
-const supportedBadgeNames = ["First Points", "First Reward"] as const;
-
-const badgeFallbacks: Record<
-  (typeof supportedBadgeNames)[number],
-  Omit<GalleryBadge, "earnedAt">
-> = {
-  "First Points": {
-    key: "first-points",
-    name: "First Points",
-    description: "Earn points for the first time.",
-    icon: "⭐",
-  },
-  "First Reward": {
-    key: "first-reward",
-    name: "First Reward",
-    description: "Redeem a reward for the first time.",
-    icon: "🎁",
-  },
 };
 
 const dateFormatter = new Intl.DateTimeFormat(undefined, {
@@ -86,14 +68,16 @@ function BadgesPage() {
 
       const { data: loadedDefinitions, error: badgeError } = await supabase
         .from("badges")
-        .select("id, name, description, icon")
-        .in("name", [...supportedBadgeNames]);
+        .select("id, family_id, name, description, icon, is_active")
+        .or(`family_id.is.null,family_id.eq.${loadedFamily.id}`)
+        .order("family_id", { ascending: true, nullsFirst: true })
+        .order("created_at", { ascending: true });
 
       if (badgeError) throw badgeError;
 
       const { data: loadedEarnedBadges, error: childBadgeError } = await supabase
         .from("child_badges")
-        .select("earned_at, badges(id, name, description, icon)")
+        .select("earned_at, badges(id, family_id, name, description, icon, is_active)")
         .eq("child_id", loadedChild.id);
 
       if (childBadgeError) throw childBadgeError;
@@ -266,30 +250,38 @@ function buildGalleryBadges(
   badgeDefinitions: BadgeDefinition[],
   childBadges: ChildBadge[],
 ): GalleryBadge[] {
-  const definitionsByName = new Map(badgeDefinitions.map((badge) => [badge.name, badge]));
-  const earnedByName = new Map<string, string>();
+  const definitionsById = new Map(badgeDefinitions.map((badge) => [badge.id, badge]));
+  const earnedById = new Map<string, string>();
+  const earnedArchivedBadges: GalleryBadge[] = [];
 
   childBadges.forEach((childBadge) => {
     const badges = [childBadge.badges ?? []].flat();
     badges.forEach((badge) => {
-      if (supportedBadgeNames.includes(badge.name as (typeof supportedBadgeNames)[number])) {
-        earnedByName.set(badge.name, childBadge.earned_at);
+      earnedById.set(badge.id, childBadge.earned_at);
+      if (!definitionsById.has(badge.id)) {
+        earnedArchivedBadges.push({
+          key: badge.id,
+          name: badge.name,
+          description: badge.description ?? "Archived badge.",
+          icon: badge.icon,
+          earnedAt: childBadge.earned_at,
+        });
       }
     });
   });
 
-  return supportedBadgeNames.map((badgeName) => {
-    const fallback = badgeFallbacks[badgeName];
-    const definition = definitionsByName.get(badgeName);
-
-    return {
-      key: definition?.id ?? fallback.key,
-      name: definition?.name ?? fallback.name,
-      description: definition?.description ?? fallback.description,
-      icon: definition?.icon ?? fallback.icon,
-      earnedAt: earnedByName.get(badgeName) ?? null,
-    };
-  });
+  return [
+    ...badgeDefinitions
+      .filter((badge) => badge.is_active)
+      .map((badge) => ({
+        key: badge.id,
+        name: badge.name,
+        description: badge.description ?? "Badge milestone.",
+        icon: badge.icon,
+        earnedAt: earnedById.get(badge.id) ?? null,
+      })),
+    ...earnedArchivedBadges,
+  ];
 }
 
 function formatDate(value: string) {

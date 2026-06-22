@@ -1,6 +1,6 @@
 # Yummy Points Project Context
 
-Last updated: 2026-06-21
+Last updated: 2026-06-22
 
 This file is the handoff document for Codex, Lovable, or any other assistant picking up the
 project. Read this before making changes.
@@ -82,12 +82,41 @@ project. Read this before making changes.
     - `src/routes/children.$childId_.rewards.tsx`
     - `PROJECT_CONTEXT.md`
   - Schema/RLS changes: none.
+- Latest local work adds Custom Badge Builder and multi-child reward targeting:
+  - Admin Badge Builder route added at `/settings/badges`.
+  - Badge Builder supports badge name, description, icon/emoji, target value, trigger type,
+    create/edit/archive for family badges, and manual award to a selected child.
+  - Supported badge trigger types are `total_points_earned`, `rewards_redeemed`, `treats_missed`,
+    and `manual_award`.
+  - Existing First Points and First Reward badges remain in `badges` as built-in/global rows and
+    are normalized to `total_points_earned` and `rewards_redeemed` trigger types.
+  - Shared badge engine added in `src/lib/badge-engine.ts`; Add Points and Reward Redemption call it
+    after the existing transaction insert and database trigger behavior.
+  - Manual award badges are only awarded from Badge Builder and are not auto-awarded.
+  - Badge Gallery now reads all active built-in/family badges plus archived badges already earned by
+    the child.
+  - Journey now includes badge unlock timeline entries from `child_badges`.
+  - Admin Settings > Rewards now supports whole-family rewards or one/more selected children via
+    `reward_template_child_targets`; Child Rewards still supports whole-family or this-child
+    creation and reads multi-child targeted rewards.
+  - Files changed:
+    - `src/lib/badge-engine.ts`
+    - `src/lib/points-flow.ts`
+    - `src/routes/settings_.badges.tsx`
+    - `src/routes/settings.tsx`
+    - `src/routes/children.$childId_.badges.tsx`
+    - `src/routes/children.$childId_.journey.tsx`
+    - `src/routes/children.$childId_.rewards.tsx`
+    - `src/routeTree.gen.ts`
+    - `supabase/20260622100000_custom_badges_and_reward_targets.sql`
+    - `PROJECT_CONTEXT.md`
 - Expected clean working tree after current handoff commit.
 - Live Supabase migration added this iteration:
   - `add_reward_template_child_scope`
   - `enforce_reward_template_child_scope_family`
   - `allow_family_members_delete_child_badges`
   - `allow_family_members_delete_transactions`
+  - `custom_badges_and_reward_targets`
 - Root cause of the failed badge reset:
   - The frontend delete query targeted the correct `child_badges` table and filtered by the current
     family's child IDs, but live RLS had SELECT and INSERT policies only. The authenticated delete
@@ -568,6 +597,7 @@ Source: Supabase MCP reads on 2026-06-16 for project `tbosqyedogluzcpzodwe`.
 - `20260615173856_add_parent_auth_and_rls_policies`
 - `20260618165815_allow_family_members_delete_child_badges`
 - `20260621120000_allow_family_members_delete_transactions`
+- `20260622100000_custom_badges_and_reward_targets`
 
 ### Edge Functions
 
@@ -669,9 +699,12 @@ Source: Supabase MCP reads on 2026-06-16 for project `tbosqyedogluzcpzodwe`.
 - Purpose: future rewards catalog.
 - Current app use:
   - Rewards lists active family-wide rewards and active rewards scoped to the selected child.
+  - Rewards also lists active rewards targeted to the selected child through
+    `reward_template_child_targets`.
   - Rewards inserts active family-wide or child-specific rewards.
   - Journey uses scoped reward visibility for next-reward progress.
-  - Admin Settings can create/edit/hide active family-wide rewards.
+  - Admin Settings can create/edit/hide active rewards and choose whole family or one/more selected
+    children.
 - Columns:
   - `id uuid primary key default gen_random_uuid()`
   - `family_id uuid not null references families(id)`
@@ -692,6 +725,23 @@ Source: Supabase MCP reads on 2026-06-16 for project `tbosqyedogluzcpzodwe`.
   - Family members can create, view, update, and delete rewards for their family.
   - INSERT and UPDATE policies also require any non-null `child_id` to belong to the same
     `family_id` as the reward.
+
+#### `public.reward_template_child_targets`
+
+- RLS enabled.
+- Purpose: optional child target join table for rewards available to multiple selected children.
+- Current app use:
+  - Admin Settings creates/deletes target rows when saving reward availability.
+  - Child Rewards loads target rows to decide whether a reward is family-wide or available to the
+    selected child.
+- Columns:
+  - `reward_template_id uuid not null references reward_templates(id) on delete cascade`
+  - `child_id uuid not null references children(id) on delete cascade`
+  - `created_at timestamptz not null default now()`
+  - primary key `(reward_template_id, child_id)`
+- RLS policies:
+  - Family members can view/create/delete target rows only when the reward and child belong to the
+    same family and the signed-in user is a member of that family.
 
 #### `public.transactions`
 
@@ -735,18 +785,28 @@ Source: Supabase MCP reads on 2026-06-16 for project `tbosqyedogluzcpzodwe`.
 - RLS enabled.
 - Purpose: badge definitions.
 - Current app use:
-  - Looks up `First Points` by `name`.
-  - Activity History reads badge names through child badge relation.
+  - Badge Builder creates/edits/archives family-owned badges.
+  - Shared badge engine reads active built-in/global and family badges for auto-awards.
+  - Badge Gallery reads active built-in/family badges and earned archived badges.
+  - Journey reads earned badges through `child_badges`.
 - Columns:
   - `id uuid primary key default gen_random_uuid()`
-  - `name text not null unique`
+  - `family_id uuid null references families(id) on delete cascade`
+  - `name text not null`
   - `description text not null`
   - `trigger_type text not null`
   - `trigger_value integer not null default 1`
   - `icon text not null default '⭐'`
+  - `is_active boolean not null default true`
   - `created_at timestamptz not null default now()`
+  - `updated_at timestamptz not null default now()`
 - RLS policies:
-  - Any signed-in user can view badges.
+  - Family members can view global badges or badges for their family.
+  - Family members can create/update family-owned badges.
+  - Built-in/global badges are not edited by the frontend.
+- Indexes:
+  - Unique lower-cased global badge names where `family_id is null`.
+  - Unique lower-cased family badge names per `family_id`.
 
 #### `public.child_badges`
 
@@ -790,20 +850,32 @@ Source: Supabase MCP reads on 2026-06-16 for project `tbosqyedogluzcpzodwe`.
 - Database has `families.quick_add_values` and `families.badges_enabled`, but current Admin Settings
   UI does not use them.
 - Badge unlock is currently client-side after a successful transaction insert.
+- Badge engine behavior:
+  - `awardEligibleBadges()` runs after Add Points and Reward Redemption insert the existing
+    transaction row.
+  - `total_points_earned` compares against `children.total_points_earned`.
+  - `rewards_redeemed` compares against `children.total_rewards_redeemed`.
+  - `treats_missed` counts selected-child `points_added` transactions.
+  - `manual_award` is excluded from automatic awarding and is awarded from Badge Builder.
+  - Duplicate awards are avoided by checking existing `child_badges` before insert.
 - Activity History badge display is inferred; there is no explicit `badge_unlocked_transaction_id`.
 - The Add Points route file uses TanStack's `children.$childId_.add-points.tsx` separate-screen
   route pattern so `/children/$childId/add-points` is not nested under child home.
 - The Activity History route follows the same separate-screen pattern.
 - Badges Gallery was added as `/children/$childId/badges` using the same separate-screen route
   pattern in `src/routes/children.$childId_.badges.tsx`.
+- Badge Builder was added as `/settings/badges` in `src/routes/settings_.badges.tsx`.
 - Badges Gallery data sources:
   - `loadChildForUser(childId, user.id)` for child/family authorization and display data.
-  - `badges` filtered to the supported names `First Points` and `First Reward`.
+  - `badges` filtered to built-in/global or selected-family badges.
   - `child_badges` joined to `badges(id, name, description, icon)` for earned status and
     `earned_at`.
-- Badges Gallery is read-only and makes no points, rewards, transaction, or badge-unlock logic
-  changes.
-- No schema changes were made for Badges Gallery.
+- Badge migration notes:
+  - Existing First Points and First Reward rows stay in `badges`.
+  - `badges.name` global uniqueness was replaced with global/family unique indexes so families can
+    create their own badge names.
+  - Existing `reward_templates.child_id` rows were copied into `reward_template_child_targets` for
+    compatibility.
 - Do not remove `<Outlet />` from `src/routes/__root.tsx`; nested routes depend on it.
 - Do not duplicate plugins already included by `@lovable.dev/vite-tanstack-config` in
   `vite.config.ts`.
@@ -812,6 +884,10 @@ Source: Supabase MCP reads on 2026-06-16 for project `tbosqyedogluzcpzodwe`.
 
 - Reset points directly updates `children.current_balance`; it does not reset
   `total_points_earned` or `total_rewards_redeemed`.
+- Built-in/global badges appear in Badge Builder but are read-only in the frontend; family-created
+  badges can be edited or archived.
+- Custom automatic badges are awarded only when a points/reward action occurs after the badge exists;
+  there is not yet a bulk backfill button for historical activity.
 - Clearing transactions after balances have been changed by triggers can make historical totals and
   current balance inconsistent unless reset tools are used carefully.
 - Admin Settings are per browser/device, not per family or shared user.

@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   ArrowLeft,
+  Award,
   BadgeCheck,
   FlaskConical,
   Gift,
@@ -69,6 +70,8 @@ type RewardTemplate = {
   name: string;
   point_cost: number;
   is_active: boolean;
+  child_id: string | null;
+  child_ids: string[];
 };
 
 type TestActionResult = {
@@ -88,6 +91,7 @@ function SettingsPage() {
   const [rewards, setRewards] = useState<RewardTemplate[]>([]);
   const [newRewardName, setNewRewardName] = useState("");
   const [newRewardCost, setNewRewardCost] = useState("");
+  const [newRewardChildIds, setNewRewardChildIds] = useState<string[]>([]);
   const [selectedTestChildId, setSelectedTestChildId] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -267,15 +271,21 @@ function SettingsPage() {
           name: trimmedName,
           point_cost: cost,
           is_active: true,
+          child_id: null,
         })
-        .select("id, name, point_cost, is_active")
+        .select("id, name, point_cost, is_active, child_id")
         .single<RewardTemplate>();
 
       if (createError) throw createError;
 
-      setRewards((currentRewards) => [...currentRewards, createdReward].sort(sortRewards));
+      await saveRewardChildTargets(createdReward.id, newRewardChildIds);
+
+      setRewards((currentRewards) =>
+        [...currentRewards, { ...createdReward, child_ids: newRewardChildIds }].sort(sortRewards),
+      );
       setNewRewardName("");
       setNewRewardCost("");
+      setNewRewardChildIds([]);
       setSaved(true);
     } catch (err) {
       setError(getErrorMessage(err));
@@ -284,13 +294,22 @@ function SettingsPage() {
     }
   }
 
-  function updateRewardDraft(id: string, field: "name" | "point_cost", value: string) {
+  function updateRewardDraft(
+    id: string,
+    field: "name" | "point_cost" | "child_ids",
+    value: string | string[],
+  ) {
     setRewards((currentRewards) =>
       currentRewards.map((reward) =>
         reward.id === id
           ? {
               ...reward,
-              [field]: field === "point_cost" ? Number(value) : value,
+              [field]:
+                field === "point_cost"
+                  ? Number(value)
+                  : field === "child_ids" && Array.isArray(value)
+                    ? value
+                    : value,
             }
           : reward,
       ),
@@ -312,18 +331,22 @@ function SettingsPage() {
     try {
       const { data: updatedReward, error: updateError } = await supabase
         .from("reward_templates")
-        .update({ name: trimmedName, point_cost: cost })
+        .update({ name: trimmedName, point_cost: cost, child_id: null })
         .eq("family_id", family.id)
         .eq("id", reward.id)
-        .select("id, name, point_cost, is_active")
+        .select("id, name, point_cost, is_active, child_id")
         .single<RewardTemplate>();
 
       if (updateError) throw updateError;
 
+      await saveRewardChildTargets(reward.id, reward.child_ids);
+
       setRewards((currentRewards) =>
         currentRewards
           .map((currentReward) =>
-            currentReward.id === updatedReward.id ? updatedReward : currentReward,
+            currentReward.id === updatedReward.id
+              ? { ...updatedReward, child_ids: reward.child_ids }
+              : currentReward,
           )
           .sort(sortRewards),
       );
@@ -836,7 +859,7 @@ function SettingsPage() {
               </CardHeader>
               <CardContent className="space-y-6">
                 <form
-                  className="grid gap-3 rounded-lg border border-secondary/40 bg-secondary/10 p-4 sm:grid-cols-[1fr_9rem_auto]"
+                  className="grid gap-3 rounded-lg border border-secondary/40 bg-secondary/10 p-4 lg:grid-cols-[1fr_9rem_1.4fr_auto]"
                   onSubmit={handleCreateReward}
                 >
                   <div className="space-y-2">
@@ -861,6 +884,12 @@ function SettingsPage() {
                       placeholder="10"
                     />
                   </div>
+                  <RewardChildSelector
+                    idPrefix="settings-new-reward"
+                    children={children}
+                    selectedChildIds={newRewardChildIds}
+                    onChange={setNewRewardChildIds}
+                  />
                   <Button
                     type="submit"
                     disabled={
@@ -884,7 +913,7 @@ function SettingsPage() {
                     {rewards.map((reward) => (
                       <section
                         key={reward.id}
-                        className="grid gap-3 rounded-lg border border-border bg-background/60 p-4 sm:grid-cols-[1fr_9rem_auto_auto]"
+                        className="grid gap-3 rounded-lg border border-border bg-background/60 p-4 lg:grid-cols-[1fr_9rem_1.4fr_auto_auto]"
                       >
                         <div className="space-y-2">
                           <Label htmlFor={`${reward.id}-reward-name`}>Reward</Label>
@@ -907,6 +936,14 @@ function SettingsPage() {
                             }
                           />
                         </div>
+                        <RewardChildSelector
+                          idPrefix={`${reward.id}-reward`}
+                          children={children}
+                          selectedChildIds={reward.child_ids}
+                          onChange={(childIds) =>
+                            updateRewardDraft(reward.id, "child_ids", childIds)
+                          }
+                        />
                         <Button
                           type="button"
                           onClick={() => handleSaveReward(reward)}
@@ -992,9 +1029,17 @@ function SettingsPage() {
                     <div>
                       <h2 className="text-lg font-semibold text-foreground">Badge rules</h2>
                       <p className="text-sm text-muted-foreground">
-                        Thresholds are checked when new points are saved.
+                        Thresholds are checked when new activity is saved. Custom badges live in the
+                        Badge Builder.
                       </p>
                     </div>
+
+                    <Button asChild variant="outline" className="w-fit">
+                      <Link to="/settings/badges">
+                        <Award aria-hidden="true" />
+                        Open Badge Builder
+                      </Link>
+                    </Button>
 
                     <div className="space-y-3">
                       {settings.badgeRules.map((badgeRule) => (
@@ -1190,6 +1235,67 @@ const futureSettings = [
   },
 ];
 
+function RewardChildSelector({
+  idPrefix,
+  children,
+  selectedChildIds,
+  onChange,
+}: {
+  idPrefix: string;
+  children: TestChild[];
+  selectedChildIds: string[];
+  onChange: (childIds: string[]) => void;
+}) {
+  const isWholeFamily = selectedChildIds.length === 0;
+
+  function toggleChild(childId: string) {
+    if (selectedChildIds.includes(childId)) {
+      onChange(selectedChildIds.filter((selectedChildId) => selectedChildId !== childId));
+      return;
+    }
+
+    onChange([...selectedChildIds, childId]);
+  }
+
+  return (
+    <fieldset className="space-y-2">
+      <legend className="text-sm font-medium text-foreground">Who can redeem?</legend>
+      <label className="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm font-medium">
+        <input
+          type="checkbox"
+          checked={isWholeFamily}
+          onChange={() => onChange([])}
+          className="size-4"
+        />
+        Whole family
+      </label>
+      {children.length > 0 && (
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
+          {children.map((child) => (
+            <label
+              key={child.id}
+              htmlFor={`${idPrefix}-${child.id}`}
+              className="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm"
+            >
+              <input
+                id={`${idPrefix}-${child.id}`}
+                type="checkbox"
+                checked={selectedChildIds.includes(child.id)}
+                onChange={() => toggleChild(child.id)}
+                className="size-4"
+              />
+              {child.name}
+            </label>
+          ))}
+        </div>
+      )}
+      <p className="text-xs text-muted-foreground">
+        Choose no children for a family reward, or pick one or more children for a targeted reward.
+      </p>
+    </fieldset>
+  );
+}
+
 async function loadTestDataForUser(userId: string) {
   const { data: membership, error: membershipError } = await supabase
     .from("family_members")
@@ -1222,7 +1328,7 @@ async function loadTestDataForUser(userId: string) {
 
   const { data: rewards, error: rewardsError } = await supabase
     .from("reward_templates")
-    .select("id, name, point_cost, is_active")
+    .select("id, name, point_cost, is_active, child_id, reward_template_child_targets(child_id)")
     .eq("family_id", family.id)
     .eq("is_active", true)
     .order("point_cost", { ascending: true })
@@ -1233,8 +1339,38 @@ async function loadTestDataForUser(userId: string) {
   return {
     family,
     children: (children ?? []) as TestChild[],
-    rewards: ((rewards ?? []) as RewardTemplate[]).sort(sortRewards),
+    rewards: (
+      (rewards ?? []) as (RewardTemplate & {
+        reward_template_child_targets?: { child_id: string }[];
+      })[]
+    )
+      .map((reward) => ({
+        ...reward,
+        child_ids:
+          reward.reward_template_child_targets?.map((target) => target.child_id) ??
+          (reward.child_id ? [reward.child_id] : []),
+      }))
+      .sort(sortRewards),
   };
+}
+
+async function saveRewardChildTargets(rewardId: string, childIds: string[]) {
+  const { error: deleteError } = await supabase
+    .from("reward_template_child_targets")
+    .delete()
+    .eq("reward_template_id", rewardId);
+
+  if (deleteError) throw deleteError;
+  if (childIds.length === 0) return;
+
+  const { error: insertError } = await supabase.from("reward_template_child_targets").insert(
+    childIds.map((childId) => ({
+      reward_template_id: rewardId,
+      child_id: childId,
+    })),
+  );
+
+  if (insertError) throw insertError;
 }
 
 function sortRewards(a: RewardTemplate, b: RewardTemplate) {
