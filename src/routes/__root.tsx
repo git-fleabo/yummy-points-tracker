@@ -78,19 +78,34 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Yummy Tracker" },
-      { name: "description", content: "Yummy Points Tracker is a React + TypeScript app for parents to manage and redeem child reward points." },
+      {
+        name: "description",
+        content:
+          "Yummy Points Tracker is a React + TypeScript app for parents to manage and redeem child reward points.",
+      },
       { name: "author", content: "Lovable" },
+      { name: "theme-color", content: "#0b1454" },
       { property: "og:title", content: "Yummy Tracker" },
-      { property: "og:description", content: "Yummy Points Tracker is a React + TypeScript app for parents to manage and redeem child reward points." },
+      {
+        property: "og:description",
+        content:
+          "Yummy Points Tracker is a React + TypeScript app for parents to manage and redeem child reward points.",
+      },
       { property: "og:type", content: "website" },
+      { property: "og:image", content: "/app-icon-512.png" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
       { name: "twitter:title", content: "Yummy Tracker" },
-      { name: "twitter:description", content: "Yummy Points Tracker is a React + TypeScript app for parents to manage and redeem child reward points." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/3507d1d9-d80e-461c-a994-f09069b4da0e/id-preview-c02ebc76--a29ec2b6-5258-4558-8729-5a6f6058392c.lovable.app-1781552173246.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/3507d1d9-d80e-461c-a994-f09069b4da0e/id-preview-c02ebc76--a29ec2b6-5258-4558-8729-5a6f6058392c.lovable.app-1781552173246.png" },
+      {
+        name: "twitter:description",
+        content:
+          "Yummy Points Tracker is a React + TypeScript app for parents to manage and redeem child reward points.",
+      },
+      { name: "twitter:image", content: "/app-icon-512.png" },
     ],
     links: [
+      { rel: "icon", type: "image/png", href: "/favicon.png" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
       {
         rel: "stylesheet",
         href: appCss,

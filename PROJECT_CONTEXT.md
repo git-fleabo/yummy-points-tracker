@@ -110,6 +110,24 @@ project. Read this before making changes.
     - `src/routeTree.gen.ts`
     - `supabase/20260622100000_custom_badges_and_reward_targets.sql`
     - `PROJECT_CONTEXT.md`
+- Latest local work adds the provided Yummy Tracker app icon:
+  - The app now uses the stacked yellow, pink, and teal tile icon with the white star on the navy
+    background.
+  - Browser favicon, Apple touch icon, and social preview metadata now point at local public assets.
+  - Files changed:
+    - `public/app-icon.png`
+    - `public/app-icon-512.png`
+    - `public/app-icon-192.png`
+    - `public/apple-touch-icon.png`
+    - `public/favicon.png`
+    - `src/routes/__root.tsx`
+    - `src/routes/signup.tsx` (format-only cleanup so full lint can pass)
+    - `PROJECT_CONTEXT.md`
+  - Schema/RLS changes: none.
+  - Verification:
+    - `npm run build` passes.
+    - `npm run lint` passes with existing Fast Refresh warnings in shared UI component exports.
+    - `git diff --check` passes.
 - Expected clean working tree after current handoff commit.
 - Live Supabase migration added this iteration:
   - `add_reward_template_child_scope`
@@ -165,9 +183,8 @@ project. Read this before making changes.
     - `supabase/20260621120000_allow_family_members_delete_transactions.sql`
     - `PROJECT_CONTEXT.md`
   - Supabase migration list shows `20260618165815_allow_family_members_delete_child_badges`.
-  - Full `npm run lint` currently fails on pre-existing formatting issues in unrelated files:
-    `src/routes/__root.tsx`, `src/routes/login.tsx`, and `src/routes/signup.tsx`, plus existing
-    Fast Refresh warnings in shared UI exports.
+  - Full `npm run lint` now passes after formatting cleanup, with existing Fast Refresh warnings in
+    shared UI exports.
 - Browser sanity check reached the local app and `/settings` redirected to `/login` because the
   browser session was not authenticated.
 
@@ -891,7 +908,7 @@ Source: Supabase MCP reads on 2026-06-16 for project `tbosqyedogluzcpzodwe`.
 - Clearing transactions after balances have been changed by triggers can make historical totals and
   current balance inconsistent unless reset tools are used carefully.
 - Admin Settings are per browser/device, not per family or shared user.
-- Full lint has unrelated pre-existing formatting failures.
+- Full lint passes, but still reports existing Fast Refresh warnings in shared UI component exports.
 - Local browser verification of signed-in screens needs test credentials or a seeded auth state.
 - Dashboard `dashboardBuildMarker` is intentionally visible but temporary.
 - `YUMMY_CONTEXT.md` exists but is older/lighter than this file. Treat `PROJECT_CONTEXT.md` as the
@@ -913,5 +930,6 @@ Source: Supabase MCP reads on 2026-06-16 for project `tbosqyedogluzcpzodwe`.
 4. Add explicit badge activity history data if more badges are added.
 5. Consider edit/archive controls for `reward_templates` once reward management grows beyond MVP
    creation/redemption.
-6. Clean up pre-existing lint formatting errors so `npm run lint` can become a reliable gate.
+6. Consider splitting shared UI constants/helpers out of component files to clear Fast Refresh
+   warnings.
 7. Remove or hide `dashboardBuildMarker` once deployment confidence is no longer needed.
