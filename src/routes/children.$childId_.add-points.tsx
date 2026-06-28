@@ -88,7 +88,8 @@ function AddPointsPage() {
     setSaving(true);
     setError(null);
 
-    const transactionNote = note.trim() || (!customAmount.trim() ? selectedActivity?.name : null);
+    const transactionNote =
+      (note.trim() || (!customAmount.trim() ? selectedActivity?.name : null)) ?? null;
 
     try {
       const result = await addPointsActivity({

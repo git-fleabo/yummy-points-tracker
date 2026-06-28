@@ -63,3 +63,44 @@ export async function loadChildForUser(childId: string, userId: string): Promise
 
   return { child, family };
 }
+
+/**
+ * Source of truth for redeemed reward counts is the `transactions` table
+ * (type = 'reward_redeemed'). The `children.total_rewards_redeemed` column is
+ * a legacy counter that can drift after activity-history resets, so we always
+ * derive counts from transactions and overlay them onto the child records.
+ */
+export async function loadRedemptionCounts(
+  familyId: string,
+  childIds: string[],
+): Promise<Record<string, number>> {
+  if (childIds.length === 0) return {};
+
+  const { data, error } = await supabase
+    .from("transactions")
+    .select("child_id")
+    .eq("family_id", familyId)
+    .eq("type", "reward_redeemed")
+    .in("child_id", childIds);
+
+  if (error) throw error;
+
+  const counts: Record<string, number> = {};
+  for (const id of childIds) counts[id] = 0;
+  for (const row of (data ?? []) as { child_id: string | null }[]) {
+    if (row.child_id && counts[row.child_id] !== undefined) {
+      counts[row.child_id] += 1;
+    }
+  }
+  return counts;
+}
+
+export function applyRedemptionCounts<T extends { id: string; total_rewards_redeemed: number }>(
+  children: T[],
+  counts: Record<string, number>,
+): T[] {
+  return children.map((child) => ({
+    ...child,
+    total_rewards_redeemed: counts[child.id] ?? 0,
+  }));
+}

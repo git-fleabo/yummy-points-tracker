@@ -294,8 +294,9 @@ function RewardsPage() {
                 <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
                   <Gift aria-hidden="true" className="size-6" />
                 </div>
-                <p className="mt-4 font-semibold text-foreground">
-                  No rewards yet. Ask a grown-up to add some in Settings.
+                <p className="mt-4 font-semibold text-foreground">No rewards yet.</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Rewards can be created in Settings.
                 </p>
               </div>
             ) : (
