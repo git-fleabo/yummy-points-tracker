@@ -37,7 +37,7 @@ import {
   type AdminSettings,
 } from "@/lib/admin-settings";
 import { avatarColourOptions, getAvatarColourClass } from "@/lib/avatar-colours";
-import { getErrorMessage } from "@/lib/family-data";
+import { applyRedemptionCounts, getErrorMessage, loadRedemptionCounts } from "@/lib/family-data";
 import { addPointsActivity } from "@/lib/points-flow";
 
 export const Route = createFileRoute("/settings")({
@@ -246,7 +246,12 @@ function SettingsPage() {
       .order("created_at", { ascending: true });
 
     if (childrenError) throw childrenError;
-    const nextChildren = (refreshedChildren ?? []) as TestChild[];
+    const baseChildren = (refreshedChildren ?? []) as TestChild[];
+    const counts = await loadRedemptionCounts(
+      family.id,
+      baseChildren.map((c) => c.id),
+    );
+    const nextChildren = applyRedemptionCounts(baseChildren, counts);
     setChildren(nextChildren);
     setSelectedTestChildId((currentChildId) => getAvailableChildId(nextChildren, currentChildId));
   }
@@ -1336,9 +1341,15 @@ async function loadTestDataForUser(userId: string) {
 
   if (rewardsError) throw rewardsError;
 
+  const baseChildren = (children ?? []) as TestChild[];
+  const counts = await loadRedemptionCounts(
+    family.id,
+    baseChildren.map((c) => c.id),
+  );
+
   return {
     family,
-    children: (children ?? []) as TestChild[],
+    children: applyRedemptionCounts(baseChildren, counts),
     rewards: (
       (rewards ?? []) as (RewardTemplate & {
         reward_template_child_targets?: { child_id: string }[];

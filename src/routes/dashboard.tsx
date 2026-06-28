@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ArrowRight, LogOut, Plus, Settings, Sparkles, Trash2, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { applyRedemptionCounts, loadRedemptionCounts } from "@/lib/family-data";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -174,9 +175,15 @@ function DashboardPage() {
 
     if (childrenError) throw childrenError;
 
+    const childrenList = (loadedChildren ?? []) as Child[];
+    const redemptionCounts = await loadRedemptionCounts(
+      loadedFamily.id,
+      childrenList.map((c) => c.id),
+    );
+
     return {
       family: loadedFamily,
-      children: loadedChildren ?? [],
+      children: applyRedemptionCounts(childrenList, redemptionCounts),
     };
   }
 
