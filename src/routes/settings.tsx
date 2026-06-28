@@ -37,7 +37,7 @@ import {
   type AdminSettings,
 } from "@/lib/admin-settings";
 import { avatarColourOptions, getAvatarColourClass } from "@/lib/avatar-colours";
-import { getErrorMessage } from "@/lib/family-data";
+import { applyRedemptionCounts, getErrorMessage, loadRedemptionCounts } from "@/lib/family-data";
 import { addPointsActivity } from "@/lib/points-flow";
 
 export const Route = createFileRoute("/settings")({
