@@ -174,9 +174,15 @@ function DashboardPage() {
 
     if (childrenError) throw childrenError;
 
+    const childrenList = (loadedChildren ?? []) as Child[];
+    const redemptionCounts = await loadRedemptionCounts(
+      loadedFamily.id,
+      childrenList.map((c) => c.id),
+    );
+
     return {
       family: loadedFamily,
-      children: loadedChildren ?? [],
+      children: applyRedemptionCounts(childrenList, redemptionCounts),
     };
   }
 
