@@ -956,3 +956,20 @@ Source: Supabase MCP reads on 2026-06-16 for project `tbosqyedogluzcpzodwe`.
 6. Consider splitting shared UI constants/helpers out of component files to clear Fast Refresh
    warnings.
 7. Remove or hide `dashboardBuildMarker` once deployment confidence is no longer needed.
+
+## Reward redemption source of truth
+
+- The authoritative record for redeemed rewards is rows in `public.transactions` with
+  `type = 'reward_redeemed'`. The legacy `children.total_rewards_redeemed` column is no
+  longer trusted by the UI — both the Dashboard "X redeemed" stat and the child Rewards
+  page history are derived from `transactions` via
+  `loadRedemptionCounts()` / `applyRedemptionCounts()` in `src/lib/family-data.ts`.
+- Reset behaviour:
+  - Reset points → balance only; reward history and the derived redeemed count are untouched.
+  - Reset badges → unlocked badges only; reward history and the derived redeemed count are untouched.
+  - Clear activity history → deletes all `transactions` for the child, so the derived
+    redeemed count automatically becomes 0 along with the Reward history list.
+  - Reset all test data → clears transactions, badges, and balance; redeemed count becomes 0.
+- "No rewards redeemed yet" on the child Rewards page now matches the Dashboard stat
+  because both read the same `reward_redeemed` transactions; old stale counter values on
+  `children.total_rewards_redeemed` are ignored.
