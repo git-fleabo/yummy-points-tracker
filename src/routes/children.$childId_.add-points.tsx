@@ -89,7 +89,7 @@ function AddPointsPage() {
     setError(null);
 
     const transactionNote =
-      note.trim() || (!customAmount.trim() ? selectedActivity?.name : null) ?? null;
+      (note.trim() || (!customAmount.trim() ? selectedActivity?.name : null)) ?? null;
 
     try {
       const result = await addPointsActivity({
