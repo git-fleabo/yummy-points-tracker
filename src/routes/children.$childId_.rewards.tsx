@@ -60,6 +60,9 @@ function RewardsPage() {
   const [family, setFamily] = useState<Family | null>(null);
   const [rewards, setRewards] = useState<RewardTemplate[]>([]);
   const [redeemedRewards, setRedeemedRewards] = useState<RedeemedReward[]>([]);
+  const [selectedReward, setSelectedReward] = useState<RewardTemplate | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [redeeming, setRedeeming] = useState(false);
   const [rewardStatus, setRewardStatus] = useState<RewardStatus>({
     redeemed: false,
     firstRewardUnlocked: false,
