@@ -30,8 +30,6 @@ type RewardTemplate = {
   reward_template_child_targets?: { child_id: string }[];
 };
 
-
-
 type RewardStatus = {
   redeemed: boolean;
   firstRewardUnlocked: boolean;
@@ -112,7 +110,6 @@ function RewardsPage() {
       isMounted = false;
     };
   }, [childId, navigate]);
-
 
   async function handleRedeemReward() {
     if (!child || !family || !selectedReward) return;
@@ -281,15 +278,12 @@ function RewardsPage() {
               </div>
             )}
 
-
             {rewards.length === 0 ? (
               <div className="rounded-lg border border-dashed border-secondary/50 bg-secondary/15 px-5 py-10 text-center">
                 <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
                   <Gift aria-hidden="true" className="size-6" />
                 </div>
-                <p className="mt-4 font-semibold text-foreground">
-                  No rewards yet.
-                </p>
+                <p className="mt-4 font-semibold text-foreground">No rewards yet.</p>
                 <p className="mt-1 text-sm text-muted-foreground">
                   Rewards can be created in Settings.
                 </p>
