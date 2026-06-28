@@ -113,42 +113,6 @@ function RewardsPage() {
     };
   }, [childId, navigate]);
 
-  async function handleCreateReward(e: React.FormEvent) {
-    e.preventDefault();
-    if (!family) return;
-
-    const trimmedName = rewardName.trim();
-    const cost = Number(rewardCost);
-    if (!trimmedName || !Number.isInteger(cost) || cost <= 0) return;
-
-    setSaving(true);
-    setError(null);
-    setRewardStatus(createEmptyRewardStatus());
-
-    const { data: createdReward, error: createError } = await supabase
-      .from("reward_templates")
-      .insert({
-        family_id: family.id,
-        name: trimmedName,
-        point_cost: cost,
-        is_active: true,
-        child_id: rewardScope === "child" ? child.id : null,
-      })
-      .select("id, name, point_cost, is_active, child_id")
-      .single<RewardTemplate>();
-
-    setSaving(false);
-
-    if (createError) {
-      setError(createError.message);
-      return;
-    }
-
-    setRewards((currentRewards) => [...currentRewards, createdReward].sort(sortRewards));
-    setRewardName("");
-    setRewardCost("");
-    setRewardScope("family");
-  }
 
   async function handleRedeemReward() {
     if (!child || !family || !selectedReward) return;
