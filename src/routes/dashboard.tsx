@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowRight, LogOut, Plus, Settings, Sparkles, Trash2, UserRound } from "lucide-react";
+import { ArrowRight, Gift, LogOut, Map, Plus, Settings, Sparkles, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -46,6 +46,29 @@ type Child = {
 const defaultFamilyName = "My Family";
 const defaultPointName = "Yummy Points";
 const dashboardBuildMarker = "visual-refresh-89e9d78";
+
+const childCardAccents = [
+  {
+    shell: "border-rose-200/80 bg-gradient-to-br from-white via-rose-50 to-amber-50",
+    glow: "bg-rose-200/50",
+    balance: "border-rose-200/80 bg-white/80",
+  },
+  {
+    shell: "border-sky-200/80 bg-gradient-to-br from-white via-sky-50 to-teal-50",
+    glow: "bg-sky-200/50",
+    balance: "border-sky-200/80 bg-white/80",
+  },
+  {
+    shell: "border-violet-200/80 bg-gradient-to-br from-white via-violet-50 to-rose-50",
+    glow: "bg-violet-200/50",
+    balance: "border-violet-200/80 bg-white/80",
+  },
+  {
+    shell: "border-emerald-200/80 bg-gradient-to-br from-white via-emerald-50 to-amber-50",
+    glow: "bg-emerald-200/50",
+    balance: "border-emerald-200/80 bg-white/80",
+  },
+];
 
 function BrandTileStack() {
   return (
@@ -366,73 +389,106 @@ function DashboardPage() {
             </p>
           </div>
         ) : (
-          <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {children.map((child) => (
-              <Card
-                key={child.id}
-                className="border-border bg-card shadow-sm transition-colors hover:border-primary/35 hover:shadow-md"
-              >
-                <CardContent className="space-y-4 p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <div
-                        className={`flex size-12 shrink-0 items-center justify-center rounded-2xl text-2xl shadow-sm ${getAvatarColourClass(child.avatar_colour)}`}
+          <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {children.map((child, index) => {
+              const accent = childCardAccents[index % childCardAccents.length];
+
+              return (
+                <Card
+                  key={child.id}
+                  className={`group relative overflow-hidden ${accent.shell} shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0`}
+                >
+                  <div
+                    aria-hidden="true"
+                    className={`absolute -right-10 -top-10 size-28 rounded-full blur-2xl ${accent.glow}`}
+                  />
+                  <CardContent className="relative space-y-4 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div
+                          className={`flex size-16 shrink-0 items-center justify-center rounded-3xl text-4xl shadow-md transition-transform duration-200 group-hover:rotate-[-3deg] group-hover:scale-105 ${getAvatarColourClass(child.avatar_colour)}`}
+                        >
+                          {child.avatar_icon ?? "⭐"}
+                        </div>
+                        <div className="min-w-0">
+                          <h2 className="truncate text-lg font-semibold text-foreground">
+                            {child.name}
+                          </h2>
+                          <p className="text-sm text-muted-foreground">
+                            {child.total_rewards_redeemed} redeemed
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="text-muted-foreground transition-colors hover:bg-white/70 hover:text-destructive"
+                        onClick={() => setChildToRemove(child)}
+                        aria-label={`Remove ${child.name}`}
                       >
-                        {child.avatar_icon ?? "⭐"}
-                      </div>
-                      <div className="min-w-0">
-                        <h2 className="truncate text-lg font-semibold text-foreground">
-                          {child.name}
-                        </h2>
-                        <p className="text-sm text-muted-foreground">
-                          {child.total_rewards_redeemed} redeemed
-                        </p>
-                      </div>
+                        <Trash2 aria-hidden="true" />
+                      </Button>
                     </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="text-muted-foreground hover:text-destructive"
-                      onClick={() => setChildToRemove(child)}
-                      aria-label={`Remove ${child.name}`}
-                    >
-                      <Trash2 aria-hidden="true" />
-                    </Button>
-                  </div>
 
-                  <div className="rounded-xl bg-background/70 p-4">
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      Balance
-                    </p>
-                    <p className="mt-1 text-3xl font-semibold text-primary">
-                      {child.current_balance}
-                    </p>
-                    <p className="text-sm text-muted-foreground">{family.point_name}</p>
-                  </div>
+                    <div className={`rounded-2xl border p-4 shadow-sm ${accent.balance}`}>
+                      <div className="flex items-end justify-between gap-3">
+                        <div>
+                          <p className="text-xs font-semibold uppercase text-muted-foreground">
+                            Ready to spend
+                          </p>
+                          <p className="mt-1 text-5xl font-semibold leading-none text-primary">
+                            {child.current_balance}
+                          </p>
+                        </div>
+                        <Sparkles
+                          aria-hidden="true"
+                          className="mb-1 size-6 text-accent-foreground"
+                        />
+                      </div>
+                      <p className="mt-2 text-sm font-medium text-muted-foreground">
+                        {family.point_name}
+                      </p>
+                    </div>
 
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button asChild className="col-span-2">
-                      <Link to="/children/$childId" params={{ childId: child.id }}>
-                        <UserRound aria-hidden="true" />
-                        Open
-                        <ArrowRight aria-hidden="true" />
-                      </Link>
-                    </Button>
-                    <Button asChild variant="secondary" size="sm">
-                      <Link to="/children/$childId/add-points" params={{ childId: child.id }}>
-                        Add points
-                      </Link>
-                    </Button>
-                    <Button asChild variant="secondary" size="sm">
-                      <Link to="/children/$childId/rewards" params={{ childId: child.id }}>
-                        Rewards
-                      </Link>
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        asChild
+                        className="col-span-2 shadow-md shadow-primary/20 transition-transform duration-150 active:scale-[0.98]"
+                      >
+                        <Link to="/children/$childId/add-points" params={{ childId: child.id }}>
+                          <Plus aria-hidden="true" />
+                          Add Points
+                          <ArrowRight aria-hidden="true" />
+                        </Link>
+                      </Button>
+                      <Button
+                        asChild
+                        variant="secondary"
+                        size="sm"
+                        className="transition-transform active:scale-[0.98]"
+                      >
+                        <Link to="/children/$childId/rewards" params={{ childId: child.id }}>
+                          <Gift aria-hidden="true" />
+                          Rewards
+                        </Link>
+                      </Button>
+                      <Button
+                        asChild
+                        variant="secondary"
+                        size="sm"
+                        className="transition-transform active:scale-[0.98]"
+                      >
+                        <Link to="/children/$childId/journey" params={{ childId: child.id }}>
+                          <Map aria-hidden="true" />
+                          Journey
+                        </Link>
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </section>
         )}
       </main>

@@ -1,6 +1,6 @@
 # Yummy Points Project Context
 
-Last updated: 2026-06-22
+Last updated: 2026-06-28
 
 This file is the handoff document for Codex, Lovable, or any other assistant picking up the
 project. Read this before making changes.
@@ -10,6 +10,13 @@ project. Read this before making changes.
 - Product name in the app: Yummy Points / Yummy Tracker.
 - Core idea: parents award points when a child misses a treat or experience; children can later use
   points for rewards.
+- Visual direction: playful polished family reward app. Dashboard, Child Home, Rewards, and Journey
+  should feel bright, warm, modern, rewarding, and adult-stylish rather than admin-like. Settings
+  should remain calmer and more administrative.
+- Shared styling decisions for the playful surfaces: use avatar colour as a visible anchor, warm
+  gradient shop/story surfaces, 2xl/3xl card radius, soft tinted glows, large point-balance type,
+  lucide icons in action buttons, emoji treatment for reward items, subtle hover lift/press states,
+  and restrained celebration styling. Avoid schema or logic changes for visual refreshes.
 - Current implementation supports auth, family bootstrap, child profiles, child home, adding
   points, reward creation/redemption, Journey, First Points and First Reward badge unlocks, Badges
   Gallery, Activity History, Admin Settings, child removal from the dashboard, a bright warm
@@ -128,6 +135,29 @@ project. Read this before making changes.
     - `npm run build` passes.
     - `npm run lint` passes with existing Fast Refresh warnings in shared UI component exports.
     - `git diff --check` passes.
+- Latest local work applies a playful polished visual refresh to the main child/reward surfaces:
+  - Dashboard child cards are more distinct, use saved avatar colour more prominently, spotlight
+    each balance, make Add Points the primary action, and keep Rewards/Journey secondary.
+  - Child Home now treats the current balance as the hero element and gives Add Points, Rewards,
+    Badges, and Journey richer tappable action cards with subtle hover/press transitions.
+  - Child Rewards now reads as a rewards shop: shop-style cards, emoji reward icons, stronger
+    affordable state, locked progress bars, clearer “Need X more” copy, and no reward creation form
+    on the child Rewards page. Reward creation/editing remains an admin/settings responsibility.
+  - Journey now reads as a progress story with distinct treatments for points added, rewards
+    redeemed, and badges unlocked while continuing to use transactions and child_badges as the
+    source of truth.
+  - Files changed:
+    - `src/routes/dashboard.tsx`
+    - `src/routes/children.$childId.tsx`
+    - `src/routes/children.$childId_.rewards.tsx`
+    - `src/routes/children.$childId_.journey.tsx`
+    - `PROJECT_CONTEXT.md`
+  - Schema/RLS changes: none.
+  - Logic changes: none to redemption, point calculation, badge awarding, auth, or family loading.
+  - Verification:
+    - `npm run build` passes.
+    - `npm run lint` passes with the existing Fast Refresh warnings in shared UI component exports.
+
 - Latest local work adds the app icon tile motif to the signed-in family dashboard:
   - A small decorative three-tile stack appears in the dashboard hero card on medium and larger
     screens.

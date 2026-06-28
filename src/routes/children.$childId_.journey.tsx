@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, Award, Gift, Sparkles } from "lucide-react";
+import { ArrowLeft, Award, Gift, Sparkles, Trophy } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,8 +36,8 @@ type TimelineItem = {
   detail: string;
   note: string | null;
   date: string;
-  variant: "default" | "secondary";
-  icon: typeof Sparkles | typeof Gift | typeof Award;
+  variant: "points" | "reward" | "badge" | "default";
+  icon: typeof Sparkles | typeof Gift | typeof Award | typeof Trophy;
 };
 
 const longDateFormatter = new Intl.DateTimeFormat(undefined, {
@@ -142,11 +142,20 @@ function JourneyPage() {
           </Link>
         </Button>
 
-        <Card className="border-border bg-card shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-2xl text-foreground">{child.name}'s Yummy Journey</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              {child.current_balance} {family.point_name} ready to use.
+        <Card className="overflow-hidden border-teal-200/80 bg-gradient-to-br from-white via-teal-50/80 to-amber-50/70 shadow-md">
+          <CardHeader className="relative">
+            <div
+              aria-hidden="true"
+              className="absolute -right-12 -top-14 size-40 rounded-full bg-teal-200/50 blur-2xl"
+            />
+            <CardTitle className="relative flex items-center gap-2 text-2xl text-foreground">
+              <span className="flex size-11 items-center justify-center rounded-2xl bg-secondary text-secondary-foreground shadow-md shadow-secondary/20">
+                <Trophy aria-hidden="true" className="size-5" />
+              </span>
+              {child.name}'s Yummy Journey
+            </CardTitle>
+            <p className="relative text-sm text-muted-foreground">
+              A story of points saved, rewards chosen, and badges unlocked.
             </p>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -156,10 +165,17 @@ function JourneyPage() {
               </div>
             )}
 
-            <div className="rounded-xl border border-secondary/40 bg-secondary/10 p-4">
-              <p className="text-sm font-medium text-muted-foreground">Current balance</p>
-              <p className="mt-1 text-4xl font-semibold text-primary">{child.current_balance}</p>
-              <p className="text-sm text-muted-foreground">{family.point_name}</p>
+            <div className="rounded-3xl border border-white/80 bg-white/80 p-5 shadow-sm">
+              <p className="text-sm font-semibold uppercase text-muted-foreground">
+                Current balance
+              </p>
+              <div className="mt-2 flex items-end gap-3">
+                <p className="text-5xl font-semibold leading-none text-primary">
+                  {child.current_balance}
+                </p>
+                <Sparkles aria-hidden="true" className="mb-1 size-6 text-accent-foreground" />
+              </div>
+              <p className="mt-2 text-sm font-medium text-muted-foreground">{family.point_name}</p>
             </div>
 
             {timeline.length === 0 ? (
@@ -172,34 +188,42 @@ function JourneyPage() {
               </div>
             ) : (
               <section className="space-y-4">
-                <h2 className="text-lg font-semibold text-foreground">Timeline</h2>
-                <div className="space-y-3">
-                  {timeline.map((item) => (
-                    <div
-                      key={item.id}
-                      className="grid grid-cols-[auto_1fr] gap-3 rounded-lg border border-border bg-background/60 p-4"
-                    >
-                      <div className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-                        <item.icon aria-hidden="true" className="size-5" />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                          <div>
-                            <p className="font-semibold text-foreground">{item.title}</p>
-                            {item.note && (
-                              <p className="mt-1 text-sm text-muted-foreground">{item.note}</p>
-                            )}
-                          </div>
-                          <Badge variant={item.variant} className="w-fit">
-                            {item.detail}
-                          </Badge>
+                <h2 className="text-lg font-semibold text-foreground">Story so far</h2>
+                <div className="relative space-y-3 before:absolute before:bottom-4 before:left-5 before:top-4 before:w-px before:bg-border">
+                  {timeline.map((item) => {
+                    const style = getTimelineStyle(item.variant);
+
+                    return (
+                      <div
+                        key={item.id}
+                        className={`relative grid grid-cols-[auto_1fr] gap-3 rounded-2xl border p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 ${style.card}`}
+                      >
+                        <div
+                          className={`z-10 flex size-10 items-center justify-center rounded-full shadow-sm ${style.icon}`}
+                        >
+                          <item.icon aria-hidden="true" className="size-5" />
                         </div>
-                        <p className="mt-3 text-sm text-muted-foreground">
-                          {formatJourneyDate(item.date)}
-                        </p>
+                        <div className="min-w-0">
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                              <p className="font-semibold text-foreground">{item.title}</p>
+                              {item.note && (
+                                <p className="mt-1 rounded-xl bg-white/60 px-3 py-2 text-sm text-muted-foreground">
+                                  {item.note}
+                                </p>
+                              )}
+                            </div>
+                            <Badge variant={style.badgeVariant} className="w-fit">
+                              {item.detail}
+                            </Badge>
+                          </div>
+                          <p className="mt-3 text-sm font-medium text-muted-foreground">
+                            {formatJourneyDate(item.date)}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </section>
             )}
@@ -233,6 +257,35 @@ async function loadChildBadges(childId: string) {
   return (loadedBadges ?? []) as ChildBadge[];
 }
 
+function getTimelineStyle(variant: TimelineItem["variant"]) {
+  switch (variant) {
+    case "points":
+      return {
+        card: "border-rose-200 bg-gradient-to-br from-white via-rose-50 to-amber-50",
+        icon: "bg-rose-200 text-rose-800",
+        badgeVariant: "default" as const,
+      };
+    case "reward":
+      return {
+        card: "border-amber-200 bg-gradient-to-br from-white via-amber-50 to-white",
+        icon: "bg-amber-200 text-amber-900",
+        badgeVariant: "secondary" as const,
+      };
+    case "badge":
+      return {
+        card: "border-violet-200 bg-gradient-to-br from-white via-violet-50 to-teal-50",
+        icon: "bg-violet-200 text-violet-900",
+        badgeVariant: "default" as const,
+      };
+    default:
+      return {
+        card: "border-border bg-white/70",
+        icon: "bg-primary/10 text-primary",
+        badgeVariant: "secondary" as const,
+      };
+  }
+}
+
 function buildTimelineItem(transaction: Transaction, child: Child, family: Family): TimelineItem {
   if (transaction.type === "reward_redeemed") {
     const rewardName = getRewardName(transaction);
@@ -246,7 +299,7 @@ function buildTimelineItem(transaction: Transaction, child: Child, family: Famil
       detail: `${Math.abs(transaction.points_change)} ${family.point_name} used`,
       note: null,
       date: transaction.created_at,
-      variant: "secondary",
+      variant: "reward",
       icon: Gift,
     };
   }
@@ -258,7 +311,7 @@ function buildTimelineItem(transaction: Transaction, child: Child, family: Famil
       detail: `+${transaction.points_change}`,
       note: transaction.note?.trim() || null,
       date: transaction.created_at,
-      variant: "default",
+      variant: "points",
       icon: Sparkles,
     };
   }
@@ -269,7 +322,7 @@ function buildTimelineItem(transaction: Transaction, child: Child, family: Famil
     detail: formatPointChange(transaction.points_change, family.point_name),
     note: null,
     date: transaction.created_at,
-    variant: transaction.points_change >= 0 ? "default" : "secondary",
+    variant: transaction.points_change >= 0 ? "points" : "reward",
     icon: Sparkles,
   };
 }
@@ -293,7 +346,7 @@ function buildBadgeTimelineItem(childBadge: ChildBadge, child: Child): TimelineI
       detail: "Badge earned",
       note: badge.icon ? badge.icon : null,
       date: childBadge.earned_at,
-      variant: "default",
+      variant: "badge",
       icon: Award,
     },
   ];

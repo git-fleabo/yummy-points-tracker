@@ -113,26 +113,41 @@ function ChildHomePage() {
           <BadgeUnlockCelebration badge={unlockedBadge} onDismiss={() => setUnlockedBadge(null)} />
         )}
 
-        <section className="rounded-2xl border border-amber-200/80 bg-gradient-to-br from-amber-100 via-rose-50 to-teal-100 p-5 shadow-sm sm:p-6">
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+        <section className="relative overflow-hidden rounded-3xl border border-amber-200/80 bg-gradient-to-br from-amber-100 via-rose-50 to-teal-100 p-5 shadow-lg shadow-amber-200/30 sm:p-7">
+          <div
+            aria-hidden="true"
+            className="absolute -right-10 -top-12 size-40 rounded-full bg-white/45 blur-2xl"
+          />
+          <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex min-w-0 items-center gap-4">
               <div
-                className={`flex size-16 shrink-0 items-center justify-center rounded-2xl text-4xl shadow-sm ${getAvatarColourClass(child.avatar_colour)}`}
+                className={`flex size-20 shrink-0 items-center justify-center rounded-3xl text-5xl shadow-lg ${getAvatarColourClass(child.avatar_colour)}`}
               >
                 {child.avatar_icon ?? "⭐"}
               </div>
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-muted-foreground">{family.name}</p>
+                <p className="truncate text-sm font-semibold text-muted-foreground">
+                  {family.name}
+                </p>
                 <h1 className="truncate text-3xl font-semibold tracking-normal text-foreground sm:text-4xl">
                   {child.name}
                 </h1>
               </div>
             </div>
 
-            <div className="rounded-xl border border-white/70 bg-white/70 px-5 py-4 shadow-sm sm:min-w-56">
-              <p className="text-sm font-medium text-muted-foreground">Current balance</p>
-              <p className="mt-1 text-4xl font-semibold text-primary">{child.current_balance}</p>
-              <p className="text-sm text-muted-foreground">{family.point_name}</p>
+            <div className="rounded-3xl border border-white/80 bg-white/80 px-6 py-5 shadow-md sm:min-w-64">
+              <p className="text-sm font-semibold uppercase text-muted-foreground">
+                Current balance
+              </p>
+              <div className="mt-2 flex items-end gap-3">
+                <p className="text-6xl font-semibold leading-none text-primary">
+                  {child.current_balance}
+                </p>
+                <Sparkles aria-hidden="true" className="mb-2 size-7 text-accent-foreground" />
+              </div>
+              <p className="mt-2 text-base font-medium text-muted-foreground">
+                {family.point_name}
+              </p>
             </div>
           </div>
         </section>
@@ -143,11 +158,15 @@ function ChildHomePage() {
               key={action.title}
               to={action.to}
               params={{ childId: child.id }}
-              className={`group rounded-xl border p-4 shadow-sm transition-colors hover:border-primary/40 ${action.cardClass}`}
+              className={`group relative overflow-hidden rounded-2xl border p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 ${action.cardClass}`}
             >
-              <div className="flex items-start justify-between gap-3">
+              <div
+                aria-hidden="true"
+                className={`absolute -right-8 -top-8 size-24 rounded-full blur-2xl ${action.glowClass}`}
+              />
+              <div className="relative flex items-start justify-between gap-3">
                 <div
-                  className={`flex size-11 items-center justify-center rounded-xl ${action.iconClass}`}
+                  className={`flex size-12 items-center justify-center rounded-2xl shadow-sm transition-transform duration-200 group-hover:scale-105 ${action.iconClass}`}
                 >
                   <action.icon aria-hidden="true" className="size-5" />
                 </div>
@@ -156,8 +175,10 @@ function ChildHomePage() {
                   className="size-5 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary"
                 />
               </div>
-              <h2 className="mt-4 text-lg font-semibold text-foreground">{action.title}</h2>
-              <p className="mt-1 text-sm text-muted-foreground">{action.description}</p>
+              <h2 className="relative mt-4 text-lg font-semibold text-foreground">
+                {action.title}
+              </h2>
+              <p className="relative mt-1 text-sm text-muted-foreground">{action.description}</p>
             </Link>
           ))}
         </section>
@@ -195,32 +216,38 @@ const homeActions = [
     description: "Save a missed treat or moment.",
     to: "/children/$childId/add-points" as const,
     icon: Plus,
-    cardClass: "border-rose-200 bg-rose-50 hover:bg-rose-100/70",
+    cardClass: "border-rose-200 bg-gradient-to-br from-rose-50 to-white hover:border-rose-300",
     iconClass: "bg-rose-200 text-rose-700",
+    glowClass: "bg-rose-200/50",
   },
   {
     title: "Rewards",
     description: "See what is ready and what is next.",
     to: "/children/$childId/rewards" as const,
     icon: Gift,
-    cardClass: "border-amber-200 bg-amber-50 hover:bg-amber-100/70",
+    cardClass: "border-amber-200 bg-gradient-to-br from-amber-50 to-white hover:border-amber-300",
     iconClass: "bg-amber-200 text-amber-800",
+    glowClass: "bg-amber-200/50",
   },
   {
     title: "Badges",
     description: "Celebrate unlocked milestones.",
     to: "/children/$childId/badges" as const,
     icon: Award,
-    cardClass: "border-emerald-200 bg-emerald-50 hover:bg-emerald-100/70",
+    cardClass:
+      "border-emerald-200 bg-gradient-to-br from-emerald-50 to-white hover:border-emerald-300",
     iconClass: "bg-emerald-200 text-emerald-800",
+    glowClass: "bg-emerald-200/50",
   },
   {
     title: "Journey",
     description: "Follow earned points, rewards, and badges.",
     to: "/children/$childId/journey" as const,
     icon: Map,
-    cardClass: "border-violet-200 bg-violet-50 hover:bg-violet-100/70",
+    cardClass:
+      "border-violet-200 bg-gradient-to-br from-violet-50 to-white hover:border-violet-300",
     iconClass: "bg-violet-200 text-violet-800",
+    glowClass: "bg-violet-200/50",
   },
 ];
 
