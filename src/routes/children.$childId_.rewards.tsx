@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, Check, Gift, PartyPopper, Plus } from "lucide-react";
+import { ArrowLeft, Check, Gift, PartyPopper } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,15 +12,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { awardEligibleBadges } from "@/lib/badge-engine";
 import { getErrorMessage, loadChildForUser, type Child, type Family } from "@/lib/family-data";
@@ -38,8 +29,6 @@ type RewardTemplate = {
   child_id: string | null;
   reward_template_child_targets?: { child_id: string }[];
 };
-
-type RewardScope = "family" | "child";
 
 type RewardStatus = {
   redeemed: boolean;
@@ -69,12 +58,8 @@ function RewardsPage() {
   const [family, setFamily] = useState<Family | null>(null);
   const [rewards, setRewards] = useState<RewardTemplate[]>([]);
   const [redeemedRewards, setRedeemedRewards] = useState<RedeemedReward[]>([]);
-  const [rewardName, setRewardName] = useState("");
-  const [rewardCost, setRewardCost] = useState("");
-  const [rewardScope, setRewardScope] = useState<RewardScope>("family");
   const [selectedReward, setSelectedReward] = useState<RewardTemplate | null>(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [redeeming, setRedeeming] = useState(false);
   const [rewardStatus, setRewardStatus] = useState<RewardStatus>({
     redeemed: false,
@@ -125,43 +110,6 @@ function RewardsPage() {
       isMounted = false;
     };
   }, [childId, navigate]);
-
-  async function handleCreateReward(e: React.FormEvent) {
-    e.preventDefault();
-    if (!family) return;
-
-    const trimmedName = rewardName.trim();
-    const cost = Number(rewardCost);
-    if (!trimmedName || !Number.isInteger(cost) || cost <= 0) return;
-
-    setSaving(true);
-    setError(null);
-    setRewardStatus(createEmptyRewardStatus());
-
-    const { data: createdReward, error: createError } = await supabase
-      .from("reward_templates")
-      .insert({
-        family_id: family.id,
-        name: trimmedName,
-        point_cost: cost,
-        is_active: true,
-        child_id: rewardScope === "child" ? child.id : null,
-      })
-      .select("id, name, point_cost, is_active, child_id")
-      .single<RewardTemplate>();
-
-    setSaving(false);
-
-    if (createError) {
-      setError(createError.message);
-      return;
-    }
-
-    setRewards((currentRewards) => [...currentRewards, createdReward].sort(sortRewards));
-    setRewardName("");
-    setRewardCost("");
-    setRewardScope("family");
-  }
 
   async function handleRedeemReward() {
     if (!child || !family || !selectedReward) return;
@@ -330,64 +278,14 @@ function RewardsPage() {
               </div>
             )}
 
-            <form
-              className="grid gap-3 sm:grid-cols-[1fr_9rem_13rem_auto]"
-              onSubmit={handleCreateReward}
-            >
-              <div className="space-y-2">
-                <Label htmlFor="reward-name">Reward</Label>
-                <Input
-                  id="reward-name"
-                  value={rewardName}
-                  onChange={(e) => setRewardName(e.target.value)}
-                  placeholder="Ice cream trip"
-                  autoComplete="off"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="reward-cost">Cost</Label>
-                <Input
-                  id="reward-cost"
-                  type="number"
-                  min={1}
-                  step={1}
-                  value={rewardCost}
-                  onChange={(e) => setRewardCost(e.target.value)}
-                  placeholder="10"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="reward-scope">Who can use this reward?</Label>
-                <Select
-                  value={rewardScope}
-                  onValueChange={(value) => setRewardScope(value as RewardScope)}
-                >
-                  <SelectTrigger id="reward-scope" className="bg-card">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="family">Whole family</SelectItem>
-                    <SelectItem value="child">This child only</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button
-                type="submit"
-                disabled={saving || !rewardName.trim() || Number(rewardCost) <= 0}
-                className="self-end"
-              >
-                <Plus aria-hidden="true" />
-                {saving ? "Adding…" : "Add"}
-              </Button>
-            </form>
-
             {rewards.length === 0 ? (
               <div className="rounded-lg border border-dashed border-secondary/50 bg-secondary/15 px-5 py-10 text-center">
                 <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
                   <Gift aria-hidden="true" className="size-6" />
                 </div>
-                <p className="mt-4 font-semibold text-foreground">
-                  No rewards yet. Create one above.
+                <p className="mt-4 font-semibold text-foreground">No rewards yet.</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Rewards can be created in Settings.
                 </p>
               </div>
             ) : (

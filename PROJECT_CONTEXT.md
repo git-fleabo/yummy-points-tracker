@@ -128,6 +128,16 @@ project. Read this before making changes.
     - `npm run build` passes.
     - `npm run lint` passes with existing Fast Refresh warnings in shared UI component exports.
     - `git diff --check` passes.
+- Reward creation moved out of the child Rewards view:
+  - The child-specific Rewards screen (`src/routes/children.$childId_.rewards.tsx`) no longer
+    includes a "create new reward" form or button.
+  - Reward creation now only happens through Settings (`src/routes/settings.tsx`).
+  - Child Rewards continues to display, select, and redeem existing rewards that apply to the
+    whole family or to that child.
+  - Files changed:
+    - `src/routes/children.$childId_.rewards.tsx`
+    - `src/routes/children.$childId_.add-points.tsx` (minor type fix to keep `npm run build` passing)
+    - `PROJECT_CONTEXT.md`
 - Latest local work adds the app icon tile motif to the signed-in family dashboard:
   - A small decorative three-tile stack appears in the dashboard hero card on medium and larger
     screens.
