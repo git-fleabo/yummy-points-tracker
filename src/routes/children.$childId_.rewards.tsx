@@ -281,56 +281,6 @@ function RewardsPage() {
               </div>
             )}
 
-            <form
-              className="grid gap-3 sm:grid-cols-[1fr_9rem_13rem_auto]"
-              onSubmit={handleCreateReward}
-            >
-              <div className="space-y-2">
-                <Label htmlFor="reward-name">Reward</Label>
-                <Input
-                  id="reward-name"
-                  value={rewardName}
-                  onChange={(e) => setRewardName(e.target.value)}
-                  placeholder="Ice cream trip"
-                  autoComplete="off"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="reward-cost">Cost</Label>
-                <Input
-                  id="reward-cost"
-                  type="number"
-                  min={1}
-                  step={1}
-                  value={rewardCost}
-                  onChange={(e) => setRewardCost(e.target.value)}
-                  placeholder="10"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="reward-scope">Who can use this reward?</Label>
-                <Select
-                  value={rewardScope}
-                  onValueChange={(value) => setRewardScope(value as RewardScope)}
-                >
-                  <SelectTrigger id="reward-scope" className="bg-card">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="family">Whole family</SelectItem>
-                    <SelectItem value="child">This child only</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button
-                type="submit"
-                disabled={saving || !rewardName.trim() || Number(rewardCost) <= 0}
-                className="self-end"
-              >
-                <Plus aria-hidden="true" />
-                {saving ? "Adding…" : "Add"}
-              </Button>
-            </form>
 
             {rewards.length === 0 ? (
               <div className="rounded-lg border border-dashed border-secondary/50 bg-secondary/15 px-5 py-10 text-center">
