@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, Check, Gift, PartyPopper, Plus } from "lucide-react";
+import { ArrowLeft, Check, Gift, PartyPopper } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,15 +12,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { awardEligibleBadges } from "@/lib/badge-engine";
 import { getErrorMessage, loadChildForUser, type Child, type Family } from "@/lib/family-data";
