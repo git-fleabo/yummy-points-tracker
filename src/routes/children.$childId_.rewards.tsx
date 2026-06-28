@@ -30,7 +30,7 @@ type RewardTemplate = {
   reward_template_child_targets?: { child_id: string }[];
 };
 
-type RewardScope = "family" | "child";
+
 
 type RewardStatus = {
   redeemed: boolean;
