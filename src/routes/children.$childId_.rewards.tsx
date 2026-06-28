@@ -288,7 +288,10 @@ function RewardsPage() {
                   <Gift aria-hidden="true" className="size-6" />
                 </div>
                 <p className="mt-4 font-semibold text-foreground">
-                  No rewards yet. Create one above.
+                  No rewards yet.
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Rewards can be created in Settings.
                 </p>
               </div>
             ) : (
