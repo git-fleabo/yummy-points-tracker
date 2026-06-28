@@ -246,7 +246,12 @@ function SettingsPage() {
       .order("created_at", { ascending: true });
 
     if (childrenError) throw childrenError;
-    const nextChildren = (refreshedChildren ?? []) as TestChild[];
+    const baseChildren = (refreshedChildren ?? []) as TestChild[];
+    const counts = await loadRedemptionCounts(
+      family.id,
+      baseChildren.map((c) => c.id),
+    );
+    const nextChildren = applyRedemptionCounts(baseChildren, counts);
     setChildren(nextChildren);
     setSelectedTestChildId((currentChildId) => getAvailableChildId(nextChildren, currentChildId));
   }
