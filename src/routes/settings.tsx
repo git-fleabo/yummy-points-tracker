@@ -1341,9 +1341,15 @@ async function loadTestDataForUser(userId: string) {
 
   if (rewardsError) throw rewardsError;
 
+  const baseChildren = (children ?? []) as TestChild[];
+  const counts = await loadRedemptionCounts(
+    family.id,
+    baseChildren.map((c) => c.id),
+  );
+
   return {
     family,
-    children: (children ?? []) as TestChild[],
+    children: applyRedemptionCounts(baseChildren, counts),
     rewards: (
       (rewards ?? []) as (RewardTemplate & {
         reward_template_child_targets?: { child_id: string }[];
